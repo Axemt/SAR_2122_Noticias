@@ -2,8 +2,8 @@ import json
 from nltk.stem.snowball import SnowballStemmer
 import os
 import re
-
-
+#Jaume te per fer:
+#show_stats, reverse_posting, solve_and_show
 class SAR_Project:
     """
     Prototipo de la clase para realizar la indexacion y la recuperacion de noticias
@@ -36,6 +36,7 @@ class SAR_Project:
         Puedes añadir más variables si las necesitas 
 
         """
+#region self Atributes
         self.index = {} # hash para el indice invertido de terminos --> clave: termino, valor: posting list.
                         # Si se hace la implementacion multifield, se pude hacer un segundo nivel de hashing de tal forma que:
                         # self.index['title'] seria el indice invertido del campo 'title'.
@@ -50,14 +51,14 @@ class SAR_Project:
         self.show_snippet = False # valor por defecto, se cambia con self.set_snippet()
         self.use_stemming = False # valor por defecto, se cambia con self.set_stemming()
         self.use_ranking = False  # valor por defecto, se cambia con self.set_ranking()
+#endregion
 
-
+#region Configuracion
     ###############################
     ###                         ###
     ###      CONFIGURACION      ###
     ###                         ###
     ###############################
-
 
     def set_showall(self, v):
         """
@@ -118,9 +119,9 @@ class SAR_Project:
         """
         self.use_ranking = v
 
+#endregion
 
-
-
+#region Indexacion
     ###############################
     ###                         ###
     ###   PARTE 1: INDEXACION   ###
@@ -246,14 +247,9 @@ class SAR_Project:
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
-
+#endregion
         
-
-
-
-
-
-
+#region Recuperacion
 
 
     ###################################
@@ -452,9 +448,9 @@ class SAR_Project:
         ########################################################
         ## COMPLETAR PARA TODAS LAS VERSIONES SI ES NECESARIO ##
         ########################################################
+#endregion
 
-
-
+#region Mostrar resultados
 
 
     #####################################
@@ -525,3 +521,4 @@ class SAR_Project:
         ###################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE RANKING ##
         ###################################################
+#endregion
