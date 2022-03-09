@@ -425,12 +425,64 @@ class SAR_Project:
         return: posting list con los newid incluidos de p1 o p2
 
         """
+        idxa, idxb = 0,0
+        res = []
 
+        while idxa != len(p1) and idxb != len(p2):
+            if p1[idxa] < p2[idxb]:
+                res.append(p1[idxa])
+                idxa += 1
+            elif p1[idxa] == p2[idxb]:
+                res.append(p1[idxa])
+                idxa += 1
+                idxb += 1
+            else: # p1[idxa] > p2[idxb]
+                res.append(p2[idxb])
+                idxb += 1
         
-        pass
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
+        while idxa < len(p1):
+            res.append(p1[idxa])
+            idxa += 1
+
+        while idxb < len(p2):
+            res.append(p2[idxb])
+            idxb += 1
+
+        return res
+
+
+    def or_not_posting(self, p1, p2):
+        """
+        NECESARIO PARA TODAS LAS VERSIONES
+
+        Calcula el OR de dos posting list de forma EFICIENTE
+
+        param:  "p1", "p2": posting lists sobre las que calcular
+                p2 es la lista sobre la que se aplica NOT
+
+
+        return: posting list con los newid incluidos de p1 o p2
+
+        """
+
+        idxa, idxb = 0,0
+        res = []
+
+        while idxa != len(p1) and idxb != len(p2):
+            if p1[idxa] < p2[idxb]:
+                res.append(p1[idxa])
+                idxa += 1
+            elif p1[idxa] == p2[idxb]:
+                idxa += 1
+                idxb += 1
+            else: # p1[idxa] > p2[idxb]
+                idxb += 1
+        
+        while idxa < len(p1):
+            res.append(p1[idxa])
+            idxa += 1
+
+        return res
 
 
     def minus_posting(self, p1, p2):
