@@ -150,8 +150,8 @@ class SAR_Project:
                     fullname = os.path.join(dir, filename)
                     self.index_file(fullname)
 
-        #Ací caldria ara recórrer tot el self.weight que s'han anat calculant tant la freqüència com en quins documents apareixia cada terme, i ara
-        #calculem els logaritmes, dividim per N i de més per poder calcular el pesat en si
+        #Per fer el càlcul dels pesats, el nombre de noticies en les quals apareix un terme es la longitud de la seua posting list i el nombre d'aparicions en una determinada
+        #notícia seria la longitud del segon element de la tupla, perquè té la forma (noticiaID, [pos1, ..., posN])
 
         ##########################################
         ## COMPLETAR PARA FUNCIONALIDADES EXTRA ##
@@ -206,7 +206,8 @@ class SAR_Project:
                         self.index[token].append(self.noticiaID) #si ja existia ho afegim al final
                         #Per a cerques posicionals:
                         #aux = self.index[token]
-                        #Ara faltaria saber com mirar si la notícia ja està dins o no, perquè lo que tenim és una llista de tuples, hauríem de recórrer-la tota?
+                        #Ara faltaria saber com mirar si la notícia ja està dins o no, perquè lo que tenim és una llista de tuples, hauríem de recórrer-la tota? 
+                        #S'hauria de discutir, preguntar-li en classe
                     else: #si no existeix, creem una llista amb la notícia on l'hem trobat com a primer element
                         self.index[token] = [self.noticiaID] 
                         #Per a cerques posicionals: Tal volta és millor idea utilitzar un diccionari per a cada terme i té com a clau noticiaID i com a valor la llista de posicions
