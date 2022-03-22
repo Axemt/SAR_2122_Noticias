@@ -431,24 +431,61 @@ class SAR_Project:
 
 
 
-    def and_posting(self, p1, p2):
+    def and_posting(self, p1, p2): #VIOLETA
         """
         NECESARIO PARA TODAS LAS VERSIONES
-
         Calcula el AND de dos posting list de forma EFICIENTE
-
         param:  "p1", "p2": posting lists sobre las que calcular
-
-
         return: posting list con los newid incluidos en p1 y p2
-
         """
+        #  p1 = [2,4,8,16,32,64,128]; p2 = [1,2,3,5,8,13,21,34]
+        res = []
+        idxa = 0
+        idxb = 0
         
-        pass
+        while idxa < len(p1) and idxb < len(p2):
+            print(idxa)
+            if p1[idxa] == p2[idxb]:
+                res.append(p1[idxa])
+                idxa += 1
+                idxb += 1
+            elif p1[idxa] < p2[idxb]:
+                idxa += 1
+            else:
+                idxb += 1
+        return res
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
 
+    def and_not_posting(self, p1, p2): #VIOLETA
+        """
+        NECESARIO PARA TODAS LAS VERSIONES
+        Calcula el ANDNOT de dos posting list de forma EFICIENTE
+        param:  "p1", "p2": posting lists sobre las que calcular
+        return: posting list con los newid incluidos en p1 y p2
+        """
+        res = []
+        idxa = 0
+        idxb = 0
+        # if not p1 and not p2: # p1 i p2 no buits VERSIO 1
+        while idxa < len(p1) and idxb < len(p2):
+            if p1[idxa] == p2[idxb]:
+                idxa += 1
+                idxb += 1
+            elif p1[idxa] < p2[idxb]:
+                res.append(p1[idxa])
+                idxa += 1
+            else:
+                idxb += 1
+        while idxa < len(p1):
+            res.append(p1[idxa])
+            idxa += 1
+
+        return res
+        ########################################
+        ## COMPLETAR PARA TODAS LAS VERSIONES ##
+        ########################################
 
 
     def or_posting(self, p1, p2):
