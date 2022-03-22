@@ -428,7 +428,7 @@ class SAR_Project:
         idxa, idxb = 0,0
         res = []
 
-        while idxa != len(p1) and idxb != len(p2):
+        while idxa < len(p1) and idxb < len(p2):
             if p1[idxa] < p2[idxb]:
                 res.append(p1[idxa])
                 idxa += 1
@@ -468,7 +468,7 @@ class SAR_Project:
         idxa, idxb = 0,0
         res = []
 
-        while idxa != len(p1) and idxb != len(p2):
+        while idxa < len(p1) and idxb < len(p2):
             if p1[idxa] < p2[idxb]:
                 res.append(p1[idxa])
                 idxa += 1
