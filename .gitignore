@@ -117,3 +117,5 @@ boletinProyecto-1.pdf
 # Project specific files
 # Sample news files
 *.json
+# Generated parsing files
+*.bin
