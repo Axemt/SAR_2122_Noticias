@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 import json
 from nltk.stem.snowball import SnowballStemmer
 import os
@@ -120,9 +121,6 @@ class SAR_Project:
         """
         self.use_ranking = v
 
-
-
-
     ###############################
     ###                         ###
     ###   PARTE 1: INDEXACION   ###
@@ -152,6 +150,7 @@ class SAR_Project:
 
         #Per fer el càlcul dels pesats, el nombre de noticies en les quals apareix un terme es la longitud de la seua posting list i el nombre d'aparicions en una determinada
         #notícia seria la longitud del segon element de la tupla, perquè té la forma (noticiaID, [pos1, ..., posN])
+        #Per fer multifield
 
         ##########################################
         ## COMPLETAR PARA FUNCIONALIDADES EXTRA ##
@@ -215,11 +214,7 @@ class SAR_Project:
                 pos += 1
                 self.noticiaID += 1 #cada vegada ho incrementem perquè no hi haja dues notícies amb el mateix ID
         self.docID += 1 #ho incrementem ja al final
-                
-        
-
-
-
+        pos = 1 #cada vegada pose la posició a 1 perquè siga la posició relativa de la notícia dins el document    
     def tokenize(self, text):
         """
         NECESARIO PARA TODAS LAS VERSIONES
@@ -280,15 +275,6 @@ class SAR_Project:
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
 
-        
-
-
-
-
-
-
-
-
     ###################################
     ###                             ###
     ###   PARTE 2.1: RECUPERACION   ###
@@ -318,6 +304,33 @@ class SAR_Project:
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
+
+        termes = query.split(" ") #separem per espais per tindre tots els termes de la consulta (inclosos AND, NOT i OR)
+        p1 = []
+        i = 1
+        if termes[0] == "NOT":
+            p1 = self.index[termes[1]]
+            p1 = self.reverse_posting(p1)
+            i += 1
+        else:
+            p1 = self.index[termes[0]]
+        while i < len(termes):
+            op = ""
+            if termes[i + 1] == "NOT":
+                if termes[i] == "AND":
+                    op = self.and_not_posting
+                else:
+                    op = self.or_not_posting
+                nova_i = i + 3
+            else:
+                if termes[i] == "AND":
+                    op = self.and_posting
+                else:
+                    op = self.or_posting
+                nova_i = i + 2 #hem d'indicar a on s'avança, 2 o 3 més segons si tenim NOT o no
+            p2 = self.index[termes[nova_i - 1]] #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
+            p1 = op(p1,p2) #en p1 anem guardant les llistes amb els resultats parcials de la nostra consulta
+            i = nova_i
 
  
 
