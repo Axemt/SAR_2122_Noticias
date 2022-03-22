@@ -1,9 +1,10 @@
 import json
+import string
 from nltk.stem.snowball import SnowballStemmer
 import os
 import re
-
-
+#Jaume te per fer:
+#show_stats, reverse_posting, solve_and_show
 class SAR_Project:
     """
     Prototipo de la clase para realizar la indexacion y la recuperacion de noticias
@@ -59,7 +60,6 @@ class SAR_Project:
     ###      CONFIGURACION      ###
     ###                         ###
     ###############################
-
 
     def set_showall(self, v):
         """
@@ -120,9 +120,9 @@ class SAR_Project:
         """
         self.use_ranking = v
 
+#endregion
 
-
-
+#region Indexacion
     ###############################
     ###                         ###
     ###   PARTE 1: INDEXACION   ###
@@ -267,7 +267,7 @@ class SAR_Project:
 
 
 
-
+    #estadistiques Indexador
     def show_stats(self):
         """
         NECESARIO PARA TODAS LAS VERSIONES
@@ -275,18 +275,35 @@ class SAR_Project:
         Muestra estadisticas de los indices
         
         """
-        pass
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
+        print("========================================")
+        print("Nombre de diaris indexats: " + str(len(self.docs)))
+        print("----------------------------------------")
+        print("Nombre de noticies indexades: " + str(len(self.news)))
+        print("----------------------------------------")
 
+        print("TOKENS:")
+        for i,j in self.index:
+            print("nº de tokens en '" + str(i) + "':" + str(len(j)))
+        print("----------------------------------------")
+        if self.permuterm:
+            print("PERMUTERMS:")
+            for i,j in self.ptindex:
+                print("nº de permuterms en '" + str(i) + "':" + str(len(j)))
+            print("----------------------------------------")
+        if self.stemming:
+            print("STEMS:")
+            for i,j in self.sindex:
+                print("nº de permuterms en '" + str(i) + "':" + str(len(j)))
+            print("----------------------------------------")
+        if self.positional: # -O
+            print("Les consultes posicionals estan permitides")
+        else:
+            print("Les consultes posicionals NO estan permitides")
+        print("========================================")
+
+#endregion
         
-
-
-
-
-
-
+#region Recuperacion
 
 
     ###################################
@@ -423,12 +440,12 @@ class SAR_Project:
         return: posting list con todos los newid exceptos los contenidos en p
 
         """
-        
-        pass
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
-
+        max = len(self.news)
+        res = []
+        for i in range(0, max):
+            if i not in p:
+                res.append(i)
+        return res
 
 
     def and_posting(self, p1, p2): #VIOLETA
@@ -579,9 +596,9 @@ class SAR_Project:
         ########################################################
         ## COMPLETAR PARA TODAS LAS VERSIONES SI ES NECESARIO ##
         ########################################################
+#endregion
 
-
-
+#region Mostrar resultados
 
 
     #####################################
@@ -607,7 +624,7 @@ class SAR_Project:
         return len(result)  # para verificar los resultados (op: -T)
 
 
-    def solve_and_show(self, query):
+    def solve_and_show(self, query): #Per als que tenen -Q
         """
         NECESARIO PARA TODAS LAS VERSIONES
 
@@ -622,9 +639,41 @@ class SAR_Project:
         return: el numero de noticias recuperadas, para la opcion -T
         
         """
+
+        #AVIS!!!!! L'accés al diccionari pot estar MAL i faltar algun [1]
+        print("========================================")
+        print("Query: " + query)
+        #Llista de les ids de les noticies
         result = self.solve_query(query)
+        print("Number of results: " + len(result))
         if self.use_ranking:
             result = self.rank_result(result, query)   
+        if self.show_snippet:
+            for i in range(0, len(result)):
+                s = "#"+str(i+1) + "\t (" + str(self.weight[result[i]]) + ")" + " (" + str(result[i]) + ")"
+                if self.index.get("date", None) != None:
+                    s += " (" + self.index['date'][result[i]] + ")"
+                if self.index.get("title", None) != None:
+                    s += self.index['title'][result[i]]
+                if self.index.get("keywords", None) != None:
+                    s += str(self.index['keywords'][result[i]][1])  #El [1] es per a agafar la llista potser estiga mal
+                print(s)
+        else:
+            for i in range(0, len(result)):
+                print("#"+str(i+1))
+                print("Score: " + str(self.weight[result[i]])) 
+                print(result[i])
+                if self.index.get("date", None) != None:
+                    print(self.index['date'][result[i]])
+                if self.index.get("title", None) != None:
+                    print(self.index['title'][result[i]])
+                if self.index.get("keywords", None) != None:
+                    print(str(self.index['keywords'][result[i]][1])) #El [1] es per a agafar la llista potser estiga mal
+                print(s)
+                if i < len(result) -1:
+                    print("----------------------------------------")
+        print("========================================")
+            
 
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
@@ -652,3 +701,4 @@ class SAR_Project:
         ###################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE RANKING ##
         ###################################################
+#endregion
