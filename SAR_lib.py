@@ -1,5 +1,6 @@
 import json
 import string
+from unittest import result
 from nltk.stem.snowball import SnowballStemmer
 import os
 import re
@@ -404,12 +405,27 @@ class SAR_Project:
         return: posting list con todos los newid exceptos los contenidos en p
 
         """
-        max = len(self.news)
+        len_p1 = len(self.news)
+        len_p2 = len(result)
         res = []
-        for i in range(0, max):
-            if i not in p:
-                res.append(i)
+        p1 = 0 #p1 sempre es igual al nombre al que senyala. Es un comptador
+        p2 = 0
+        while p1 < len_p1 and p2 < len_p1:
+            if result[p2] > p1:
+                res.append(p1)
+                p1 +=1
+            else:
+                p1 +=1
+                p2 +=1
+        while p1 < len_p1:
+            res.append(p1)
+            p1 +=1
+
         return res
+
+
+
+        
 
 
     def and_posting(self, p1, p2):
