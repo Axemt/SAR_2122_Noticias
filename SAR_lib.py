@@ -283,8 +283,11 @@ class SAR_Project:
         print("----------------------------------------")
 
         print("TOKENS:")
-        for i,j in self.index:
-            print("nº de tokens en '" + str(i) + "':" + str(len(j)))
+        if self.multifield:
+            for i,j in self.index:
+                print("nº de tokens en '" + str(i) + "':" + str(len(j)))
+        else:
+            print("nº de tokens en 'article':" + str(len(self.index)))
         print("----------------------------------------")
         if self.permuterm:
             print("PERMUTERMS:")
@@ -663,24 +666,26 @@ class SAR_Project:
         if self.show_snippet:
             for i in range(0, len(result)):
                 s = "#"+str(i+1) + "\t (" + str(self.weight[result[i]]) + ")" + " (" + str(result[i]) + ")"
-                if self.index.get("date", None) != None:
-                    s += " (" + self.index['date'][result[i]] + ")"
-                if self.index.get("title", None) != None:
-                    s += self.index['title'][result[i]]
-                if self.index.get("keywords", None) != None:
-                    s += str(self.index['keywords'][result[i]][1])  #El [1] es per a agafar la llista potser estiga mal
+                if self.multifield:
+                    if self.index.get("date", None) != None:
+                        s += " (" + self.index['date'][result[i]] + ")"
+                    if self.index.get("title", None) != None:
+                        s += self.index['title'][result[i]]
+                    if self.index.get("keywords", None) != None:
+                        s += str(self.index['keywords'][result[i]][1])  #El [1] es per a agafar la llista potser estiga mal
                 print(s)
         else:
             for i in range(0, len(result)):
                 print("#"+str(i+1))
                 print("Score: " + str(self.weight[result[i]])) 
                 print(result[i])
-                if self.index.get("date", None) != None:
-                    print(self.index['date'][result[i]])
-                if self.index.get("title", None) != None:
-                    print(self.index['title'][result[i]])
-                if self.index.get("keywords", None) != None:
-                    print(str(self.index['keywords'][result[i]][1])) #El [1] es per a agafar la llista potser estiga mal
+                if self.multifield:
+                    if self.index.get("date", None) != None:
+                        print(self.index['date'][result[i]])
+                    if self.index.get("title", None) != None:
+                        print(self.index['title'][result[i]])
+                    if self.index.get("keywords", None) != None:
+                        print(str(self.index['keywords'][result[i]][1])) #El [1] es per a agafar la llista potser estiga mal
                 print(s)
                 if i < len(result) -1:
                     print("----------------------------------------")
