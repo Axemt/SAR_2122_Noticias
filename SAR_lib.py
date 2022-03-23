@@ -38,8 +38,7 @@ class SAR_Project:
         Puedes añadir más variables si las necesitas 
 
         """
-#region self Atributes
-        self.index = {} # hash para el indice invertido de terminos --> clave: termino, valor: posting list.
+        self.index = {} # hash para el indice invertido de terminos --> clave: termino, valor: posting list(de les notícies en les quals apareix).
                         # Si se hace la implementacion multifield, se pude hacer un segundo nivel de hashing de tal forma que:
                         # self.index['title'] seria el indice invertido del campo 'title'.
         self.sindex = {} # hash para el indice invertido de stems --> clave: stem, valor: lista con los terminos que tienen ese stem
@@ -53,9 +52,10 @@ class SAR_Project:
         self.show_snippet = False # valor por defecto, se cambia con self.set_snippet()
         self.use_stemming = False # valor por defecto, se cambia con self.set_stemming()
         self.use_ranking = False  # valor por defecto, se cambia con self.set_ranking()
-#endregion
-
-#region Configuracion
+        #atributs de creació pròpia:
+        self.docID = 1 #portem un identificador global del document, inicialment en 1
+        self.noticiaID = 1 #portem un identificador global per a cada noticia
+        self.frequencies = {} #gastar-ho com a auxiliar per al pesado(weights) que només ho podem calcular una vegada estiguen ja totes les freqüències
     ###############################
     ###                         ###
     ###      CONFIGURACION      ###
@@ -135,7 +135,7 @@ class SAR_Project:
         """
         NECESARIO PARA TODAS LAS VERSIONES
         
-        Recorre recursivamente el directorio "root" e indexa su contenido
+        Recorre recursivamente el directorio "root" e indexa su contenido, hem de passar-ho sense / inicial, directament és 2015/1 per exemple
         los argumentos adicionales "**args" solo son necesarios para las funcionalidades ampliadas
 
         """
@@ -150,6 +150,9 @@ class SAR_Project:
                 if filename.endswith('.json'):
                     fullname = os.path.join(dir, filename)
                     self.index_file(fullname)
+
+        #Per fer el càlcul dels pesats, el nombre de noticies en les quals apareix un terme es la longitud de la seua posting list i el nombre d'aparicions en una determinada
+        #notícia seria la longitud del segon element de la tupla, perquè té la forma (noticiaID, [pos1, ..., posN])
 
         ##########################################
         ## COMPLETAR PARA FUNCIONALIDADES EXTRA ##
@@ -171,10 +174,6 @@ class SAR_Project:
                 Una vez parseado con json.load tendremos una lista de diccionarios, cada diccionario se corresponde a una noticia
 
         """
-
-        with open(filename) as fh:
-            jlist = json.load(fh)
-
         #
         # "jlist" es una lista con tantos elementos como noticias hay en el fichero,
         # cada noticia es un diccionario con los campos:
@@ -184,9 +183,41 @@ class SAR_Project:
         #
         #
         #
-        #################
-        ### COMPLETAR ###
-        #################
+        #Enllacem el docID del document en qüestió amb el seu path
+        self.docs[self.docID] = filename
+
+        pos = 1 #pos marcarà en quina posició se troba cada notícia en el document del qual forma part
+        with open(filename) as fh:
+            jlist = json.load(fh)
+            for noticia in jlist: #és un diccionari
+                self.news[self.noticiaID] = (self.docID, pos) #guardem una tupla del document on se troba la notícia i la seua posició en ell
+                tokens = self.tokenize(noticia['article']) #tokenitzem la notícia
+                #Per a cerques posicionals:
+                #idParaula = 1
+                for token in tokens:
+                    #Per a implementar el multifield aço s'haurà de canviar de manera que en lloc de consultar self.index[token] se consulte self.index['article'][token] i de més
+                    #Per a calcular els pesats, primer calculem la freqüència: pensar si se pot posar en index
+                    #if token in self.frequencies: #si es la primera vegada que trobem el token
+                    #   documents, frequencia = self.frequencies[token]
+                    #   documents.add(docID)
+                    #   self.frequencies[token] = (documents, frequencia + 1)
+                    #else:
+                    #   self.frequencies[token] = ({docID}, 1) #utilitzarem sets en lloc de llistes perquè evita repetits
+                    if token in self.index: 
+                        self.index[token].append(self.noticiaID) #si ja existia ho afegim al final
+                        #Per a cerques posicionals:
+                        #aux = self.index[token]
+                        #Ara faltaria saber com mirar si la notícia ja està dins o no, perquè lo que tenim és una llista de tuples, hauríem de recórrer-la tota? 
+                        #S'hauria de discutir, preguntar-li en classe
+                    else: #si no existeix, creem una llista amb la notícia on l'hem trobat com a primer element
+                        self.index[token] = [self.noticiaID] 
+                        #Per a cerques posicionals: Tal volta és millor idea utilitzar un diccionari per a cada terme i té com a clau noticiaID i com a valor la llista de posicions
+                        # self.index[token] = [(self.noticiaID, [idParaula])]       
+                pos += 1
+                self.noticiaID += 1 #cada vegada ho incrementem perquè no hi haja dues notícies amb el mateix ID
+        self.docID += 1 #ho incrementem ja al final
+                
+        
 
 
 
@@ -321,15 +352,20 @@ class SAR_Project:
 
 
         param:  "term": termino del que se debe recuperar la posting list.
-                "field": campo sobre el que se debe recuperar la posting list, solo necesario se se hace la ampliacion de multiples indices
+                "field": campo sobre el que se debe recuperar la posting list, solo necesario si se hace la ampliacion de multiples indices
 
         return: posting list
 
         """
-        pass
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
+        #De moment funciona, però quan implementem les ampliacions, com per exemple per a cerques posicionals, que guardem cada noticia i en quina posició, ja no funcionarà,
+        #però simplement cal que ho recorrem:
+        #posting_list = []
+        #for noticia, _ in self.index[term]:
+        #   posting_list.append(noticia)
+        #return posting_list
+
+        return self.index.get(term, []) #si no existeix el term en l'índex inveritt tornem la llista buida
+
 
 
 
@@ -424,28 +460,61 @@ class SAR_Project:
         return res
 
 
-
-        
-
-
-    def and_posting(self, p1, p2):
+    def and_posting(self, p1, p2): #VIOLETA
         """
         NECESARIO PARA TODAS LAS VERSIONES
-
         Calcula el AND de dos posting list de forma EFICIENTE
-
         param:  "p1", "p2": posting lists sobre las que calcular
-
-
         return: posting list con los newid incluidos en p1 y p2
-
         """
+        #  p1 = [2,4,8,16,32,64,128]; p2 = [1,2,3,5,8,13,21,34]
+        res = []
+        idxa = 0
+        idxb = 0
         
-        pass
+        while idxa < len(p1) and idxb < len(p2):
+            print(idxa)
+            if p1[idxa] == p2[idxb]:
+                res.append(p1[idxa])
+                idxa += 1
+                idxb += 1
+            elif p1[idxa] < p2[idxb]:
+                idxa += 1
+            else:
+                idxb += 1
+        return res
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
 
+    def and_not_posting(self, p1, p2): #VIOLETA
+        """
+        NECESARIO PARA TODAS LAS VERSIONES
+        Calcula el ANDNOT de dos posting list de forma EFICIENTE
+        param:  "p1", "p2": posting lists sobre las que calcular
+        return: posting list con los newid incluidos en p1 y p2
+        """
+        res = []
+        idxa = 0
+        idxb = 0
+        # if not p1 and not p2: # p1 i p2 no buits VERSIO 1
+        while idxa < len(p1) and idxb < len(p2):
+            if p1[idxa] == p2[idxb]:
+                idxa += 1
+                idxb += 1
+            elif p1[idxa] < p2[idxb]:
+                res.append(p1[idxa])
+                idxa += 1
+            else:
+                idxb += 1
+        while idxa < len(p1):
+            res.append(p1[idxa])
+            idxa += 1
+
+        return res
+        ########################################
+        ## COMPLETAR PARA TODAS LAS VERSIONES ##
+        ########################################
 
 
     def or_posting(self, p1, p2):
@@ -460,12 +529,64 @@ class SAR_Project:
         return: posting list con los newid incluidos de p1 o p2
 
         """
+        idxa, idxb = 0,0
+        res = []
 
+        while idxa < len(p1) and idxb < len(p2):
+            if p1[idxa] < p2[idxb]:
+                res.append(p1[idxa])
+                idxa += 1
+            elif p1[idxa] == p2[idxb]:
+                res.append(p1[idxa])
+                idxa += 1
+                idxb += 1
+            else: # p1[idxa] > p2[idxb]
+                res.append(p2[idxb])
+                idxb += 1
         
-        pass
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
+        while idxa < len(p1):
+            res.append(p1[idxa])
+            idxa += 1
+
+        while idxb < len(p2):
+            res.append(p2[idxb])
+            idxb += 1
+
+        return res
+
+
+    def or_not_posting(self, p1, p2):
+        """
+        NECESARIO PARA TODAS LAS VERSIONES
+
+        Calcula el OR de dos posting list de forma EFICIENTE
+
+        param:  "p1", "p2": posting lists sobre las que calcular
+                p2 es la lista sobre la que se aplica NOT
+
+
+        return: posting list con los newid incluidos de p1 o p2
+
+        """
+
+        idxa, idxb = 0,0
+        res = []
+
+        while idxa < len(p1) and idxb < len(p2):
+            if p1[idxa] < p2[idxb]:
+                res.append(p1[idxa])
+                idxa += 1
+            elif p1[idxa] == p2[idxb]:
+                idxa += 1
+                idxb += 1
+            else: # p1[idxa] > p2[idxb]
+                idxb += 1
+        
+        while idxa < len(p1):
+            res.append(p1[idxa])
+            idxa += 1
+
+        return res
 
 
     def minus_posting(self, p1, p2):
