@@ -10,4 +10,4 @@ economía OR keywords:precio
 guerra
 keywords:EEUU
 guerra OR keywords:EEUU
-guerra OR keywords:EEUU
+guerra AND keywords:EEUU

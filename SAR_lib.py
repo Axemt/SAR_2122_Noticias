@@ -149,11 +149,17 @@ class SAR_Project:
         self.permuterm = args['permuterm']
         
         self.index['article'] = {}
+        self.weight['article'] = {}
         if self.multifield:
             self.index['title'] = {}
             self.index['date'] = {}
             self.index['keywords'] = {}
             self.index['summary'] = {}   
+            #self.weight tindrà un primer nivell d'indexació per al multifield, i després un per a la paraula i dins d'esta per a cada document
+            self.weight['title'] = {}
+            self.weight['date'] = {}
+            self.weight['keywords'] = {}
+            self.weight['summary'] = {}  
 
         for dir, subdirs, files in os.walk(root):
             for filename in files:
@@ -236,11 +242,19 @@ class SAR_Project:
                             diccionari_posicions[field][token] = [index]
                 for field in diccionari.keys():
                     for token, aparicions in diccionari[field].items():
+                        if token not in self.weight[field]:
+                            self.weight[field][token] = {}
+                        #el noticiaID no existirà perquè estem considerant-la ara
+                        val = aparicions / len(tokens[field])
+                        if val != 0:
+                            val = math.log(val) + 1
+                        self.weight[field][token][self.noticiaID] = val #calculem el nombre d'aparicions / longitud del document
                         posicions = diccionari_posicions[field][token]
                         if token in self.index[field]:
                             self.index[field][token].append((self.noticiaID, aparicions, posicions))
                         else:
                             self.index[field][token] = [(self.noticiaID, aparicions, posicions)]
+                
                 pos += 1
                 self.noticiaID += 1 #cada vegada ho incrementem perquè no hi haja dues notícies amb el mateix ID
         self.docID += 1 #ho incrementem ja al final 
@@ -877,16 +891,17 @@ class SAR_Project:
             for i in range(0, len(result)):
                 docID, newPos, longitud = self.news[result[i]]
                 with open(self.docs[docID], "r") as file:
+                    jlist = json.load(file)
                     print("#"+str(i+1))
                     print("Score: " + str( self.weight[result[i]] if self.use_ranking else 0)) 
                     print(result[i]) # docID
                     if self.multifield:
                         if self.index.get("date", None) != None:
-                            print(jlist[newPos-1][result[i]])
+                            print(jlist[newPos-1]['date'])
                         if self.index.get("title", None) != None:
-                            print(jlist[newPos-1]['title'][result[i]])
+                            print(jlist[newPos-1]['title'])
                         if self.index.get("keywords", None) != None:
-                            print(str(jlist[newPos-1]['keywords'][result[i]][1])) #El [1] es per a agafar la llista potser estiga mal
+                            print(str(jlist[newPos-1]['keywords'])) #El [1] es per a agafar la llista potser estiga mal
 
                     if i < len(result) -1:
                         print("----------------------------------------")
