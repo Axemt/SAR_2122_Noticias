@@ -526,10 +526,9 @@ class SAR_Project:
         if term not in self.index[field]:
             return []
 
-        return [x[0] for x in self.index[field][term]]        
-        #if field != 'date':
+        if field != 'date':
             #return [x[0] for x in self.index[field][term]] #si no existeix el term en l'índex inveritt tornem la llista buida
-        #else: 
+        else: 
             #return [x for x in self.index[field][term]] #si no existeix el term en l'índex invertit tornem la llista buida
 
     def get_positionals(self, terms, field='article'):
