@@ -212,11 +212,6 @@ class SAR_Project:
         self.stemmer.stem(token) devuelve el stem del token
 
         """
-<<<<<<< Updated upstream
-        # docID, conteo, posicions
-        
-        pass
-=======
         ocurrStem = 0
         for token in self.index['article']:
             stem = self.stemmer.stem(self.index['article'][token])
@@ -240,7 +235,6 @@ class SAR_Project:
                 
                 self.sindex[f][stem] = (ocurrStem, self.sindex[f][stem][1] + [token])
         # keyword title summary
->>>>>>> Stashed changes
         ####################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
         ####################################################
@@ -380,7 +374,7 @@ class SAR_Project:
 
         i += 1
 
-        while i < len()
+        while i < len(self.sindex[])
 
         for nOcurr, ltoken in self.sindex[stem]:
             res =+ ltoken
