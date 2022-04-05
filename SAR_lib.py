@@ -309,7 +309,7 @@ class SAR_Project:
             for f in fields:
                 
                 for token in self.index[f]:
-                    stem = self.stemmer.stem(self.index[f][token])
+                    stem = self.stemmer.stem(token)
                     ocurr = 0
                     ocurrStem = 0
                     for (_, aparicions, _) in self.index[f][token]:
@@ -521,7 +521,7 @@ class SAR_Project:
         #si no existeix el term en l'índex inveritt tornem la llista buida
         if self.use_stemming:
             return self.get_stemming(term, field) 
-        if self.permuterm and '*' in term:
+        if self.permuterm and '*' in term or '?' in term:
             return self.get_permuterm(term)
         if term not in self.index[field]:
             return []
@@ -611,19 +611,23 @@ class SAR_Project:
         # 'term' contains *, get * to leftmost
         wordstack = list(term) + ['$']
 
-        while wordstack[0] != '*':
+        # permuterm queries with '*' and '?
+        while wordstack[0] not in  ['*', '?']:
             wordstack.append(wordstack.pop(0))
         
-        # '*' in wordstack[0]
+        # '*/?' in wordstack[0]
         wordstack.append(wordstack.pop(0))
         # term has form ab..$cd..*
 
-        term = ''.join(wordstack).replace('*','')
+        is_qmark = '?' in term
+        term = ''.join(wordstack).replace('*','').replace('?','')
 
         res = []
         for k in self.ptindex[field].keys():
             left_acum = []
             if k.startswith(term):
+                if is_qmark and len(k) != len(term) + 1:
+                    continue
                 # get list of terms fullfilling the query
                 fullfils_q = self.ptindex[field][k]
                 # get postings of terms
