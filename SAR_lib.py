@@ -49,6 +49,7 @@ class SAR_Project:
         self.docs = {} # diccionario de documentos --> clave: entero(docid),  valor: ruta del fichero.
         self.weight = {} # hash de terminos para el pesado, ranking de resultados. puede no utilizarse
         self.news = {} # hash de noticias --> clave entero (newid), valor: la info necesaria para diferenciar la noticia dentro de su fichero (doc_id y posición dentro del documento)
+        self.doc_weight_query = {} #diccionario de docID y su peso con la query actual (suma de pesos por termino de query)
         self.tokenizer = re.compile("\W+") # expresion regular para hacer la tokenizacion
         self.stemmer = SnowballStemmer('spanish') # stemmer en castellano
         self.show_all = False # valor por defecto, se cambia con self.set_showall()
@@ -245,9 +246,9 @@ class SAR_Project:
                         if token not in self.weight[field]:
                             self.weight[field][token] = {}
                         #el noticiaID no existirà perquè estem considerant-la ara
-                        val = aparicions / len(tokens[field])
+                        val = aparicions
                         if val != 0:
-                            val = math.log(val) + 1
+                            val = (math.log10(val) + 1)/ len(tokens[field])
                         self.weight[field][token][self.noticiaID] = val #calculem el nombre d'aparicions / longitud del document
                         posicions = diccionari_posicions[field][token]
                         if token in self.index[field]:
@@ -257,6 +258,13 @@ class SAR_Project:
                 
                 pos += 1
                 self.noticiaID += 1 #cada vegada ho incrementem perquè no hi haja dues notícies amb el mateix ID
+            for field in self.weight:
+                for weight_w in self.weight[field]:
+                    for weight_doc in self.weight[field][weight_w]:
+                        normalized_tf = self.weight[field][weight_w][weight_doc]
+                        normalized_tfxidf=normalized_tf*math.log10(len(self.news)/len(self.index[field][weight_w]))
+                        self.weight[field][weight_w][weight_doc] = normalized_tfxidf
+                        
         self.docID += 1 #ho incrementem ja al final 
     
     def tokenize(self, text):
@@ -865,8 +873,10 @@ class SAR_Project:
             snippetList = [[positionList[0][1]]]
             cont = 0
             lastpos = positionList[0][1]
+            if len(positionList) >= 3:
+                positionList = positionList[0:3]
             for pi in range(1,len(positionList)):
-                if positionList[pi][1] -lastpos> 11:
+                if positionList[pi][1] -lastpos> 30:
                     snippetList.append([])
                     cont+=1
                 snippetList[cont].append(positionList[pi][1])
@@ -875,10 +885,13 @@ class SAR_Project:
             noticia = self.tokenize(article)
             noticiaWordSnippetList = []
             for l in snippetList:
-                if len(l) == 1 and self.news[newsID][2] - l[0] > 5:
-                    noticiaWordSnippetList += noticia[l[0]:l[0] + 4] + ['...']
+                rest = 1
+                if l[0] == 0:
+                    rest = 0
+                if len(l) == 1 and self.news[newsID][2] - l[0] > 10:
+                    noticiaWordSnippetList += noticia[l[0] - rest:l[0] + 15] + ['...']
                 elif len(l) > 1:
-                    noticiaWordSnippetList += noticia[l[0]:l[-1]] + ['...']
+                    noticiaWordSnippetList += noticia[l[0] - rest:l[-1]] + ['...']
 
             #for wq in qList:
             snippetRes = ""
@@ -895,6 +908,7 @@ class SAR_Project:
         result = self.solve_query(query)
         print("Number of results: " + str(len(result) if result != [] else 0))
         print("----------------------------------------")
+        self.doc_weight_query = dict()
         if self.use_ranking:
             result = self.rank_result(result, query)
         
@@ -905,13 +919,13 @@ class SAR_Project:
                 docID, newPos, longitud = self.news[result[i]]
                 with open(self.docs[docID], "r") as file:
                     jlist = json.load(file)
-                    s = "#"+str(i+1) + "\n Score: " + str(self.weight.get(result[i],0)) + "\ndocID: " + str(result[i]) + "\n"
+                    s = "#"+str(i+1) + "\n Score: " + str(self.doc_weight_query.get(result[i],"-")) + "\ndocID: " + str(result[i]) + "\n"
                     if self.multifield:
-                        s += "Date: " + jlist[newPos-1]['date'] + "\n"
-                        s += "Title: " + jlist[newPos-1]['title'] + "\n"
-                        s += "Keywords: " + str(jlist[newPos-1]['keywords'])
+                        s += "Date: " + jlist[newPos]['date'] + "\n"
+                        s += "Title: " + jlist[newPos]['title'] + "\n"
+                        s += "Keywords: " + str(jlist[newPos]['keywords'])
                     print(s)
-                    print("Snipped: " + make_snippet(result[i],jlist[newPos-1]['article']))
+                    print("Snipped: " + make_snippet(result[i],jlist[newPos]['article']))
                     
         else:
             for i in range(0, len(result)):
@@ -919,12 +933,12 @@ class SAR_Project:
                 with open(self.docs[docID], "r") as file:
                     jlist = json.load(file)
                     s ="#"+str(i+1)
-                    s+="\t(" + str( self.weight.get(result[i],0)) + ")"
+                    s+="\t(" + str(self.doc_weight_query.get(result[i],"-")) + ")"
                     s+= "\t(" +str(result[i])+")\t" # docID
                     if self.multifield:
-                        s += "Date: " + jlist[newPos-1]['date'] + "\t"
-                        s += "Title: " + jlist[newPos-1]['title'] + "\t"
-                        s += "(" + str(jlist[newPos-1]['keywords']) + ")"
+                        s += "Date: " + jlist[newPos]['date'] + "\t"
+                        s += "Title: " + jlist[newPos]['title'] + "\t"
+                        s += "(" + str(jlist[newPos]['keywords']) + ")"
                     print(s)
                     if i < len(result) -1:
                         print("----------------------------------------")
@@ -950,25 +964,18 @@ class SAR_Project:
         """
         queryList = query.split(" ")
         command_list = ["NOT", "AND", "OR"]
-        doc_list = [x[0] for x in self.index]
-        docResult = dict()
-        N = len(self.news)
-        for wq in queryList:
-            if wq in command_list and wq not in self.index:
-                continue
-            wqList = self.index[wq]
-            idf = math.log(N/len(self.index[wq]))
-            points = []
-            for d,n in wqList:
-                if d not in result:
-                    continue
-                tf = 1+math.log10(n)
-                idfxtf = tf*idf
-                docResult[d] = docResult.get(d,0) + idfxtf
-        for d,v in docResult:
-            docResult[d] = v/self.news[d][2]
-        return [k for k, v in sorted(docResult.items(), key=lambda item: item[1])]
-        pass
+        queryList = [x for x in queryList if x not in command_list]
+        doc_list = [] #[(docID, weight),(...), ...]
+        for doc in result:
+            docWeight = 0
+            for qword in queryList:
+                docWeight += self.weight['article'][qword][doc]
+            doc_list.append((doc,docWeight))
+        
+        self.doc_weight_query = dict(doc_list)
+        doc_list = [k for k, v in sorted(doc_list, key=lambda item: item[1], reverse=True)]
+        return doc_list
+        
         
         ###################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE RANKING ##
