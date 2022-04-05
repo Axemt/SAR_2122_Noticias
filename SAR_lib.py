@@ -188,8 +188,8 @@ class SAR_Project:
         with open(filename) as fh:
             jlist = json.load(fh)
             for noticia in jlist: #és un diccionari
-                self.news[self.noticiaID] = (self.docID, pos) #guardem una tupla del document on se troba la notícia i la seua posició en ell
                 tokens = self.tokenize(noticia['article']) #tokenitzem la notícia
+                self.news[self.noticiaID] = (self.docID, pos, len(tokens)) #guardem una tupla del document on se troba la notícia i la seua posició en ell
                 #Per a cerques posicionals:
                 #idParaula = 1
                 for token in tokens:
