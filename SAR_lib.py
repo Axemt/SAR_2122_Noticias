@@ -194,36 +194,46 @@ class SAR_Project:
         #
         #Enllacem el docID del document en qüestió amb el seu path
         self.docs[self.docID] = filename
-        pos = 1 #pos marcarà en quina posició se troba cada notícia en el document del qual forma part
+        pos = 0 #pos marcarà en quina posició se troba cada notícia en el document del qual forma part, és la posició relativa
         with open(filename) as fh:
             jlist = json.load(fh)
             for noticia in jlist: #és un diccionari
                 diccionari = {} #per a cadascuna de les notícies ens creem un diccionari auxiliar que conte les vegades que ha aparegut
                 diccionari_posicions = {} #i guardem també les posicions on apareix cada token en eixa notícia
-                tokens = self.tokenize(noticia['article']) #tokenitzem la notícia
-                self.news[self.noticiaID] = (self.docID, pos, len(tokens)) #guardem una tupla del document on se troba la notícia i la seua posició en ell
-                for index, token in enumerate(tokens):
-                    diccionari[token] = diccionari.get(token, 0) + 1
-                    if token in diccionari_posicions:
-                        diccionari_posicions[token].append(index) #si ja existia ho afegim al final
-                        #Per a cerques posicionals:
-                        #aux = self.index[token]
-                        #Ara faltaria saber com mirar si la notícia ja està dins o no, perquè lo que tenim és una llista de tuples, hauríem de recórrer-la tota? 
-                        #S'hauria de discutir, preguntar-li en classe
-                    else: #si no existeix, creem una llista amb la notícia on l'hem trobat com a primer element
-                        diccionari_posicions[token] = [index]
-                        #Per a cerques posicionals: Tal volta és millor idea utilitzar un diccionari per a cada terme i té com a clau noticiaID i com a valor la llista de posicions
-                        # self.index[token] = [(self.noticiaID, [idParaula])]       
-                for token, aparicions in diccionari.items():
-                    posicions = diccionari_posicions[token]
-                    if token in self.index['article']:
-                        self.index['article'][token].append((self.noticiaID, aparicions, posicions))
-                    else:
-                        self.index['article'][token] = [(self.noticiaID, aparicions, posicions)]
+                diccionari['article'] = {}
+                diccionari_posicions['article'] = {}
+                tokens = {}
+                tokens['article'] = self.tokenize(noticia['article']) #tokenitzem la notícia
+                self.news[self.noticiaID] = (self.docID, pos, len(tokens['article'])) #guardem una tupla del document on se troba la notícia i la seua posició en ell i la longitud de l'article per fer el ranquing     
+                if self.multifield:
+                    diccionari['summary'] = {}
+                    diccionari['title'] = {}
+                    diccionari['keywords'] = {}
+                    diccionari_posicions['summary'] = {}
+                    diccionari_posicions['title'] = {}
+                    diccionari_posicions['keywords'] = {}
+                    tokens['summary'] = self.tokenize(noticia['summary'])
+                    tokens['keywords'] = self.tokenize(noticia['keywords'])
+                    tokens['title'] = self.tokenize(noticia['title'])
+                for field in tokens.keys():
+                    tokens_field = tokens[field] #ho tenim de manera que és un diccionari amb els tokens per cada camp
+                    for index,token in enumerate(tokens_field):
+                        diccionari[field][token] = diccionari[field].get(token, 0) + 1
+                        if token in diccionari_posicions[field]:
+                            diccionari_posicions[field][token].append(index) #si ja existia ho afegim al final
+                        else: #si no existeix, creem una llista amb la notícia on l'hem trobat com a primer element
+                            diccionari_posicions[field][token] = [index]
+                for field in diccionari.keys():
+                    for token, aparicions in diccionari[field].items():
+                        posicions = diccionari_posicions[field][token]
+                        if token in self.index[field]:
+                            self.index[field][token].append((self.noticiaID, aparicions, posicions))
+                        else:
+                            self.index[field][token] = [(self.noticiaID, aparicions, posicions)]
+                self.index['date'][noticia['date']] = self.noticiaID
                 pos += 1
                 self.noticiaID += 1 #cada vegada ho incrementem perquè no hi haja dues notícies amb el mateix ID
-        self.docID += 1 #ho incrementem ja al final
-        pos = 1 #cada vegada pose la posició a 1 perquè siga la posició relativa de la notícia dins el document    
+        self.docID += 1 #ho incrementem ja al final 
     
     def tokenize(self, text):
         """
