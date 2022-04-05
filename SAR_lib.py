@@ -203,7 +203,6 @@ class SAR_Project:
                 self.news[self.noticiaID] = (self.docID, pos) #guardem una tupla del document on se troba la notícia i la seua posició en ell
                 tokens = self.tokenize(noticia['article']) #tokenitzem la notícia
                 for index, token in enumerate(tokens):
-                    diccionari[token] = diccionari.get(token, 0) + 1
                     if token in diccionari_posicions:
                         diccionari_posicions[token].append(index) #si ja existia ho afegim al final
                         diccionari[token] = diccionari[token] + 1
@@ -367,8 +366,6 @@ class SAR_Project:
             p1 = op(p1,p2) #en p1 anem guardant les llistes amb els resultats parcials de la nostra consulta
             i = nova_i
         return p1
- 
-
 
     def get_posting(self, term, field='article'):
         """
@@ -471,7 +468,7 @@ class SAR_Project:
 
         """
         len_p1 = len(self.news)
-        len_p2 = len(result)
+        len_p2 = len(p)
         res = []
         p1 = 0 #p1 sempre es igual al nombre al que senyala. Es un comptador
         p2 = 0
@@ -592,22 +589,10 @@ class SAR_Project:
 
         """
 
-        idxa, idxb = 0,0
-        res = []
+        p2_reverse = self.reverse_posting(p2)
 
-        while idxa < len(p1) and idxb < len(p2):
-            if p1[idxa] < p2[idxb]:
-                res.append(p1[idxa])
-                idxa += 1
-            elif p1[idxa] == p2[idxb]:
-                idxa += 1
-                idxb += 1
-            else: # p1[idxa] > p2[idxb]
-                idxb += 1
-        
-        while idxa < len(p1):
-            res.append(p1[idxa])
-            idxa += 1
+        res = self.or_posting(p1, p2_reverse)
+            
 
         return res
 
