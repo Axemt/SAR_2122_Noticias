@@ -882,6 +882,7 @@ class SAR_Project:
         #Llista de les ids de les noticies
         result = self.solve_query(query)
         print("Number of results: " + str(len(result) if result != [] else 0))
+        print("----------------------------------------")
         if self.use_ranking:
             result = self.rank_result(result, query)
         
@@ -892,32 +893,27 @@ class SAR_Project:
                 docID, newPos, longitud = self.news[result[i]]
                 with open(self.docs[docID], "r") as file:
                     jlist = json.load(file)
-                    s = "#"+str(i+1) + "\t (" + str(self.weight.get(result[i],0)) + ")" + " (" + str(result[i]) + ")"
+                    s = "#"+str(i+1) + "\n Score: " + str(self.weight.get(result[i],0)) + "\ndocID: " + str(result[i]) + "\n"
                     if self.multifield:
-                        if self.index.get("date", None) != None:
-                            s += " (" + jlist[newPos-1]['date'] + ")"
-                        if self.index.get("title", None) != None:
-                            s += jlist[newPos-1]['title']
-                        if self.index.get("keywords", None) != None:
-                            s += str(jlist[newPos-1]['keywords'])  #El [1] es per a agafar la llista potser estiga mal
+                        s += "Date: " + jlist[newPos-1]['date'] + "\n"
+                        s += "Title: " + jlist[newPos-1]['title'] + "\n"
+                        s += "Keywords: " + str(jlist[newPos-1]['keywords'])
                     print(s)
-                    print(make_snippet(result[i],jlist[newPos-1]['article']))
+                    print("Snipped: " + make_snippet(result[i],jlist[newPos-1]['article']))
                     
         else:
             for i in range(0, len(result)):
                 docID, newPos, longitud = self.news[result[i]]
                 with open(self.docs[docID], "r") as file:
-                    print("#"+str(i+1))
-                    print("Score: " + str( self.weight[result[i]] if self.use_ranking else 0)) 
-                    print(result[i]) # docID
+                    jlist = json.load(file)
+                    s ="#"+str(i+1)
+                    s+="\t(" + str( self.weight.get(result[i],0)) + ")"
+                    s+= "\t(" +str(result[i])+")\t" # docID
                     if self.multifield:
-                        if self.index.get("date", None) != None:
-                            print(jlist[newPos-1][result[i]])
-                        if self.index.get("title", None) != None:
-                            print(jlist[newPos-1]['title'][result[i]])
-                        if self.index.get("keywords", None) != None:
-                            print(str(jlist[newPos-1]['keywords'][result[i]][1])) #El [1] es per a agafar la llista potser estiga mal
-
+                        s += "Date: " + jlist[newPos-1]['date'] + "\t"
+                        s += "Title: " + jlist[newPos-1]['title'] + "\t"
+                        s += "(" + str(jlist[newPos-1]['keywords']) + ")"
+                    print(s)
                     if i < len(result) -1:
                         print("----------------------------------------")
         print("========================================")
