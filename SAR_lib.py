@@ -1,4 +1,6 @@
+from curses import newpad
 import json
+from pydoc import doc
 import string
 from unittest import result
 from nltk.stem.snowball import SnowballStemmer
@@ -675,6 +677,7 @@ class SAR_Project:
                     if self.index.get("keywords", None) != None:
                         s += str(self.index['keywords'][result[i]][1])  #El [1] es per a agafar la llista potser estiga mal
                 print(s)
+                print(make_snippet(result[i]))
         else:
             for i in range(0, len(result)):
                 print("#"+str(i+1))
@@ -691,7 +694,33 @@ class SAR_Project:
                 if i < len(result) -1:
                     print("----------------------------------------")
         print("========================================")
-            
+        
+        def make_snippet(newsID):
+            qList = query.split(" ")
+            commandList = ["AND", "OR", "NOT"]
+            qList = [x for x in qList if wq not in commandList]
+            positionList = []
+            for wq in qList:
+                if wq not in self.index:
+                    continue
+                wqPosList = self.index[wq][2]
+                for p in wqPosList:
+                    positionList.append((wq,p))
+            positionList = sorted(positionList, key= lambda x: x[1]) #Major pos al principi. Menor al final
+
+            docID, newPos = self.news[newsID]
+            with open(self.docs[docID], "r") as file:
+                jlist = json.load(file)
+                noticia = jlist[newPos]["article"]
+                noticia = noticia.split(" ")
+                noticia[positionList[-1],positionList[0]]
+            #for wq in qList:
+            snippetRes = ""
+            for w_noticia in noticia:
+                snippetRes += w_noticia + " "
+
+            return snippetRes
+
 
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
@@ -722,7 +751,7 @@ class SAR_Project:
             if wq in command_list and wq not in self.index:
                 continue
             wqList = self.index[wq]
-            idf = N/len(self.index[wq])
+            idf = math.log(N/len(self.index[wq]))
             points = []
             for d,n in wqList:
                 if d not in result:
@@ -730,7 +759,8 @@ class SAR_Project:
                 tf = 1+math.log10(n)
                 idfxtf = tf*idf
                 docResult[d] = docResult.get(d,0) + idfxtf
-        
+        for d,v in docResult:
+            docResult[d] = v/self.news[d][2]
         return [k for k, v in sorted(docResult.items(), key=lambda item: item[1])]
         pass
         
