@@ -1,10 +1,12 @@
 from contextlib import nullcontext
 import json
+from pydoc import doc
 import string
 from unittest import result
 from nltk.stem.snowball import SnowballStemmer
 import os
 import re
+import math;
 #Jaume te per fer:
 #show_stats, reverse_posting, solve_and_show
 class SAR_Project:
@@ -158,11 +160,12 @@ class SAR_Project:
                 if filename.endswith('.json'):
                     fullname = os.path.join(dir, filename)
                     self.index_file(fullname)
-
+                    
         # Tot l'index generat: fer permuterm
-        self.make_permuterm()
-        self.make_stemming()
-
+        if self.permuterm:
+            self.make_permuterm()
+        if self.stemming:
+            self.make_stemming()
         #Per fer el càlcul dels pesats, el nombre de noticies en les quals apareix un terme es la longitud de la seua posting list i el nombre d'aparicions en una determinada
         #notícia seria la longitud del segon element de la tupla, perquè té la forma (noticiaID, [pos1, ..., posN])
         #Per fer multifield
@@ -219,7 +222,10 @@ class SAR_Project:
                     tokens['summary'] = self.tokenize(noticia['summary'])
                     tokens['keywords'] = self.tokenize(noticia['keywords'])
                     tokens['title'] = self.tokenize(noticia['title'])
-                    self.index['date'][noticia['date']] = self.noticiaID
+                    if noticia['date'] in self.index['date']:
+                        self.index['date'][noticia['date']].append(self.noticiaID)
+                    else:
+                        self.index['date'][noticia['date']] = [self.noticiaID]
                 for field in tokens.keys():
                     tokens_field = tokens[field] #ho tenim de manera que és un diccionari amb els tokens per cada camp
                     for index,token in enumerate(tokens_field):
@@ -382,7 +388,7 @@ class SAR_Project:
         print("TOKENS:")
         if self.multifield:
             for i,j in self.index.items():
-                print("nº de tokens en '" + str(i) + "':" + str(len(j)))
+                print("nº de tokens en '" + str(i) + "': " + str(len(j)))
         else:
             print("nº de tokens en 'article':" + str(len(self.index['article'].keys())))
         print("----------------------------------------")
@@ -437,15 +443,15 @@ class SAR_Project:
         i = 1
         if termes[0] == "NOT":
             if self.multifield and ":" in termes[1]:
-                [camp, terme] = termes[1].split(" ")
+                [camp, terme] = termes[1].split(":")
                 p1 = self.get_posting(terme, camp)
             else: 
                 p1 = self.get_posting(termes[1])
             p1 = self.reverse_posting(p1)
             i += 1
         else:
-            if self.multifield and ":" in termes[1]:
-                [camp, terme] = termes[0].split(" ")
+            if self.multifield and ":" in termes[0]:
+                [camp, terme] = termes[0].split(":")
                 p1 = self.get_posting(terme, camp)
             else: 
                 p1 = self.get_posting(termes[0])
@@ -464,7 +470,7 @@ class SAR_Project:
                     op = self.or_posting
                 nova_i = i + 2 #hem d'indicar a on s'avança, 2 o 3 més segons si tenim NOT o no
             if self.multifield and ":" in termes[nova_i - 1]:
-                [camp, terme] = termes[nova_i - 1].split(" ")
+                [camp, terme] = termes[nova_i - 1].split(":")
                 p2 = self.get_posting(terme, camp)
             else:
                 p2 = self.get_posting(termes[nova_i - 1]) #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
@@ -497,11 +503,22 @@ class SAR_Project:
         #   posting_list.append(noticia)
         #return posting_list
 
+
+        if term not in self.index[field]:
+            return []
         #si no existeix el term en l'índex inveritt tornem la llista buida
         if self.use_stemming:
             return self.get_stemming(term, field) 
-        return [x[0] for x in self.index[field][term]] if '*' not in term else self.get_permuterm(term)
+        if self.permuterm and '*' in term:
+            return self.get_permuterm(term)
+        return [x[0] for x in self.index[field][term]]
         
+
+        
+        #if field != 'date':
+            #return [x[0] for x in self.index[field][term]] #si no existeix el term en l'índex inveritt tornem la llista buida
+        #else: 
+            #return [x for x in self.index[field][term]] #si no existeix el term en l'índex invertit tornem la llista buida
 
     def get_positionals(self, terms, field='article'):
         """
@@ -815,6 +832,49 @@ class SAR_Project:
         return: el numero de noticias recuperadas, para la opcion -T
         
         """
+        
+        def make_snippet(newsID, article):
+            qList = query.split(" ")
+            commandList = ["AND", "OR", "NOT"]
+            qList = [x for x in qList if x not in commandList]
+            positionList = []
+            docID, newPos, longitud = self.news[newsID]
+            for wq in qList:
+                if wq in self.index['article'].keys():
+                    wqPosList = self.index['article'][wq]
+                    wqPosListTest = [x for x in wqPosList if x[0] == newsID][0]
+                    wqPosList = [x[2] for x in wqPosList if x[0] == newsID][0]
+                    
+                    for p in wqPosList:
+                        positionList.append((wq,p))
+
+            positionList = sorted(positionList, key= lambda x: x[1], reverse=False) #Major pos al principi. Menor al final
+            #Crear partes de stems...
+            snippetList = [[positionList[0][1]]]
+            cont = 0
+            lastpos = positionList[0][1]
+            for pi in range(1,len(positionList)):
+                if positionList[pi][1] -lastpos> 11:
+                    snippetList.append([])
+                    cont+=1
+                snippetList[cont].append(positionList[pi][1])
+                lastpos = positionList[pi][1]
+
+            noticia = self.tokenize(article)
+            noticiaWordSnippetList = []
+            for l in snippetList:
+                if len(l) == 1 and self.news[newsID][2] - l[0] > 5:
+                    noticiaWordSnippetList += noticia[l[0]:l[0] + 4] + ['...']
+                elif len(l) > 1:
+                    noticiaWordSnippetList += noticia[l[0]:l[-1]] + ['...']
+
+            #for wq in qList:
+            snippetRes = ""
+            for w_noticia in noticiaWordSnippetList:
+                snippetRes += w_noticia + " "
+
+            return snippetRes
+
 
         #AVIS!!!!! L'accés al diccionari pot estar MAL i faltar algun [1]
         print("========================================")
@@ -823,34 +883,49 @@ class SAR_Project:
         result = self.solve_query(query)
         print("Number of results: " + str(len(result) if result != [] else 0))
         if self.use_ranking:
-            result = self.rank_result(result, query)   
+            result = self.rank_result(result, query)
+        
+        if not self.show_all and len(result) >= 10:
+            result = result[0:10]
         if self.show_snippet:
             for i in range(0, len(result)):
-                s = "#"+str(i+1) + "\t (" + str(self.weight[result[i]]) + ")" + " (" + str(result[i]) + ")"
-                if self.multifield:
-                    if self.index.get("date", None) != None:
-                        s += " (" + self.index['date'][result[i]] + ")"
-                    if self.index.get("title", None) != None:
-                        s += self.index['title'][result[i]]
-                    if self.index.get("keywords", None) != None:
-                        s += str(self.index['keywords'][result[i]][1])  #El [1] es per a agafar la llista potser estiga mal
-                print(s)
+                docID, newPos, longitud = self.news[result[i]]
+                with open(self.docs[docID], "r") as file:
+                    jlist = json.load(file)
+                    s = "#"+str(i+1) + "\t (" + str(self.weight.get(result[i],0)) + ")" + " (" + str(result[i]) + ")"
+                    if self.multifield:
+                        if self.index.get("date", None) != None:
+                            s += " (" + jlist[newPos-1]['date'] + ")"
+                        if self.index.get("title", None) != None:
+                            s += jlist[newPos-1]['title']
+                        if self.index.get("keywords", None) != None:
+                            s += str(jlist[newPos-1]['keywords'])  #El [1] es per a agafar la llista potser estiga mal
+                    print(s)
+                    print(make_snippet(result[i],jlist[newPos-1]['article']))
+                    
         else:
             for i in range(0, len(result)):
-                print("#"+str(i+1))
-                print("Score: " + str( self.weight[result[i]] if self.use_ranking else 0)) 
-                print(result[i]) # docID
-                if self.multifield:
-                    if self.index.get("date", None) != None:
-                        print(self.index['date'][result[i]])
-                    if self.index.get("title", None) != None:
-                        print(self.index['title'][result[i]])
-                    if self.index.get("keywords", None) != None:
-                        print(str(self.index['keywords'][result[i]][1])) #El [1] es per a agafar la llista potser estiga mal
+                docID, newPos, longitud = self.news[result[i]]
+                with open(self.docs[docID], "r") as file:
+                    print("#"+str(i+1))
+                    print("Score: " + str( self.weight[result[i]] if self.use_ranking else 0)) 
+                    print(result[i]) # docID
+                    if self.multifield:
+                        if self.index.get("date", None) != None:
+                            print(jlist[newPos-1][result[i]])
+                        if self.index.get("title", None) != None:
+                            print(jlist[newPos-1]['title'][result[i]])
+                        if self.index.get("keywords", None) != None:
+                            print(str(jlist[newPos-1]['keywords'][result[i]][1])) #El [1] es per a agafar la llista potser estiga mal
 
-                if i < len(result) -1:
-                    print("----------------------------------------")
+                    if i < len(result) -1:
+                        print("----------------------------------------")
         print("========================================")
+
+        ########################################
+        ## COMPLETAR PARA TODAS LAS VERSIONES ##
+        ########################################
+
 
     def rank_result(self, result, query):
         """
@@ -865,7 +940,26 @@ class SAR_Project:
         return: la lista de resultados ordenada
 
         """
-
+        queryList = query.split(" ")
+        command_list = ["NOT", "AND", "OR"]
+        doc_list = [x[0] for x in self.index]
+        docResult = dict()
+        N = len(self.news)
+        for wq in queryList:
+            if wq in command_list and wq not in self.index:
+                continue
+            wqList = self.index[wq]
+            idf = math.log(N/len(self.index[wq]))
+            points = []
+            for d,n in wqList:
+                if d not in result:
+                    continue
+                tf = 1+math.log10(n)
+                idfxtf = tf*idf
+                docResult[d] = docResult.get(d,0) + idfxtf
+        for d,v in docResult:
+            docResult[d] = v/self.news[d][2]
+        return [k for k, v in sorted(docResult.items(), key=lambda item: item[1])]
         pass
         
         ###################################################
