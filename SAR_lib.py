@@ -191,29 +191,28 @@ class SAR_Project:
         with open(filename) as fh:
             jlist = json.load(fh)
             for noticia in jlist: #és un diccionari
+                diccionari = {} #per a cadascuna de les notícies ens creem un diccionari auxiliar que conte les vegades que ha aparegut
+                diccionari_posicions = {} #i guardem també les posicions on apareix cada token en eixa notícia
                 self.news[self.noticiaID] = (self.docID, pos) #guardem una tupla del document on se troba la notícia i la seua posició en ell
                 tokens = self.tokenize(noticia['article']) #tokenitzem la notícia
-                #Per a cerques posicionals:
-                #idParaula = 1
-                for token in tokens:
-                    #Per a implementar el multifield aço s'haurà de canviar de manera que en lloc de consultar self.index[token] se consulte self.index['article'][token] i de més
-                    #Per a calcular els pesats, primer calculem la freqüència: pensar si se pot posar en index
-                    #if token in self.frequencies: #si es la primera vegada que trobem el token
-                    #   documents, frequencia = self.frequencies[token]
-                    #   documents.add(docID)
-                    #   self.frequencies[token] = (documents, frequencia + 1)
-                    #else:
-                    #   self.frequencies[token] = ({docID}, 1) #utilitzarem sets en lloc de llistes perquè evita repetits
-                    if token in self.index: 
-                        self.index[token].append(self.noticiaID) #si ja existia ho afegim al final
+                for index, token in enumerate(tokens):
+                    diccionari[token] = diccionari.get(token, 0) + 1
+                    if token in diccionari:
+                        diccionari_posicions[token].append(index) #si ja existia ho afegim al final
                         #Per a cerques posicionals:
                         #aux = self.index[token]
                         #Ara faltaria saber com mirar si la notícia ja està dins o no, perquè lo que tenim és una llista de tuples, hauríem de recórrer-la tota? 
                         #S'hauria de discutir, preguntar-li en classe
                     else: #si no existeix, creem una llista amb la notícia on l'hem trobat com a primer element
-                        self.index[token] = [self.noticiaID] 
+                        diccionari_posicions[token] = [index]
                         #Per a cerques posicionals: Tal volta és millor idea utilitzar un diccionari per a cada terme i té com a clau noticiaID i com a valor la llista de posicions
                         # self.index[token] = [(self.noticiaID, [idParaula])]       
+                for token, aparicions in diccionari:
+                    posicions = diccionari_posicions[token]
+                    if token in self.index:
+                        self.index['article'][token].append((self.noticiaID, aparicions, posicions))
+                    else:
+                        self.index['article'][token] = [(self.noticiaID, aparicions, posicions)]
                 pos += 1
                 self.noticiaID += 1 #cada vegada ho incrementem perquè no hi haja dues notícies amb el mateix ID
         self.docID += 1 #ho incrementem ja al final
@@ -332,11 +331,6 @@ class SAR_Project:
 
         if query is None or len(query) == 0:
             return []
-
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
-
         termes = query.split(" ") #separem per espais per tindre tots els termes de la consulta (inclosos AND, NOT i OR)
         p1 = []
         i = 1
@@ -363,7 +357,7 @@ class SAR_Project:
             p2 = self.index[termes[nova_i - 1]] #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
             p1 = op(p1,p2) #en p1 anem guardant les llistes amb els resultats parcials de la nostra consulta
             i = nova_i
-
+        return p1
  
 
 
@@ -390,8 +384,10 @@ class SAR_Project:
         #for noticia, _ in self.index[term]:
         #   posting_list.append(noticia)
         #return posting_list
-
-        return self.index.get(term, []) #si no existeix el term en l'índex inveritt tornem la llista buida
+        docs = []
+        for x in self.index[field][term]:
+            docs.append(x[0])
+        return docs #si no existeix el term en l'índex inveritt tornem la llista buida
 
     def get_positionals(self, terms, field='article'):
         """
@@ -507,9 +503,6 @@ class SAR_Project:
             else:
                 idxb += 1
         return res
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
 
     def and_not_posting(self, p1, p2): #VIOLETA
         """
@@ -536,9 +529,6 @@ class SAR_Project:
             idxa += 1
 
         return res
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
 
 
     def or_posting(self, p1, p2):
@@ -711,14 +701,6 @@ class SAR_Project:
                 if i < len(result) -1:
                     print("----------------------------------------")
         print("========================================")
-            
-
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
-
-
-
 
     def rank_result(self, result, query):
         """
