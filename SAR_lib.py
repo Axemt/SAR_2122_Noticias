@@ -865,11 +865,11 @@ class SAR_Project:
                     s = "#"+str(i+1) + "\t (" + str(self.weight.get(result[i],0)) + ")" + " (" + str(result[i]) + ")"
                     if self.multifield:
                         if self.index.get("date", None) != None:
-                            s += " (" + jlist[newPos]['date'] + ")"
+                            s += " (" + jlist[newPos-1]['date'] + ")"
                         if self.index.get("title", None) != None:
-                            s += jlist[newPos]['title']
+                            s += jlist[newPos-1]['title']
                         if self.index.get("keywords", None) != None:
-                            s += str(jlist[newPos]['keywords'])  #El [1] es per a agafar la llista potser estiga mal
+                            s += str(jlist[newPos-1]['keywords'])  #El [1] es per a agafar la llista potser estiga mal
                     print(s)
                     print(make_snippet(result[i],jlist[newPos-1]['article']))
                     
@@ -882,11 +882,11 @@ class SAR_Project:
                     print(result[i]) # docID
                     if self.multifield:
                         if self.index.get("date", None) != None:
-                            print(jlist[newPos][result[i]])
+                            print(jlist[newPos-1][result[i]])
                         if self.index.get("title", None) != None:
-                            print(jlist[newPos]['title'][result[i]])
+                            print(jlist[newPos-1]['title'][result[i]])
                         if self.index.get("keywords", None) != None:
-                            print(str(jlist[newPos]['keywords'][result[i]][1])) #El [1] es per a agafar la llista potser estiga mal
+                            print(str(jlist[newPos-1]['keywords'][result[i]][1])) #El [1] es per a agafar la llista potser estiga mal
 
                     if i < len(result) -1:
                         print("----------------------------------------")
