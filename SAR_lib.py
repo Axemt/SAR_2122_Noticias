@@ -205,14 +205,12 @@ class SAR_Project:
                 for index, token in enumerate(tokens):
                     if token in diccionari_posicions:
                         diccionari_posicions[token].append(index) #si ja existia ho afegim al final
-                        diccionari[token] = diccionari[token] + 1
                         #Per a cerques posicionals:
                         #aux = self.index[token]
                         #Ara faltaria saber com mirar si la notícia ja està dins o no, perquè lo que tenim és una llista de tuples, hauríem de recórrer-la tota? 
                         #S'hauria de discutir, preguntar-li en classe
                     else: #si no existeix, creem una llista amb la notícia on l'hem trobat com a primer element
                         diccionari_posicions[token] = [index]
-                        diccionari[token] = 1
                         #Per a cerques posicionals: Tal volta és millor idea utilitzar un diccionari per a cada terme i té com a clau noticiaID i com a valor la llista de posicions
                         # self.index[token] = [(self.noticiaID, [idParaula])]       
                 for token, aparicions in diccionari.items():
@@ -344,11 +342,11 @@ class SAR_Project:
         p1 = []
         i = 1
         if termes[0] == "NOT":
-            p1 = self.index[termes[1]]
+            p1 = self.get_posting(termes[1])
             p1 = self.reverse_posting(p1)
             i += 1
         else:
-            p1 = self.index[termes[0]]
+            p1 = self.get_posting(termes[0])
         while i < len(termes):
             op = ""
             if termes[i + 1] == "NOT":
@@ -363,7 +361,7 @@ class SAR_Project:
                 else:
                     op = self.or_posting
                 nova_i = i + 2 #hem d'indicar a on s'avança, 2 o 3 més segons si tenim NOT o no
-            p2 = self.index[termes[nova_i - 1]] #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
+            p2 = self.get_posting(termes[nova_i - 1]) #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
             p1 = op(p1,p2) #en p1 anem guardant les llistes amb els resultats parcials de la nostra consulta
             i = nova_i
         return p1
@@ -391,10 +389,7 @@ class SAR_Project:
         #for noticia, _ in self.index[term]:
         #   posting_list.append(noticia)
         #return posting_list
-        docs = []
-        for x in self.index[field][term]:
-            docs.append(x[0])
-        return docs #si no existeix el term en l'índex inveritt tornem la llista buida
+        return [x[0] for x in self.index[field][term]] #si no existeix el term en l'índex inveritt tornem la llista buida
 
     def get_positionals(self, terms, field='article'):
         """
@@ -473,8 +468,8 @@ class SAR_Project:
         res = []
         p1 = 0 #p1 sempre es igual al nombre al que senyala. Es un comptador
         p2 = 0
-        while p1 < len_p1 and p2 < len_p1:
-            if result[p2] > p1:
+        while p1 < len_p1 and p2 < len_p2:
+            if p[p2] > p1:
                 res.append(p1)
                 p1 +=1
             else:
@@ -500,7 +495,6 @@ class SAR_Project:
         idxb = 0
         
         while idxa < len(p1) and idxb < len(p2):
-            print(idxa)
             if p1[idxa] == p2[idxb]:
                 res.append(p1[idxa])
                 idxa += 1
@@ -589,13 +583,7 @@ class SAR_Project:
         return: posting list con los newid incluidos de p1 o p2
 
         """
-
-        p2_reverse = self.reverse_posting(p2)
-
-        res = self.or_posting(p1, p2_reverse)
-            
-
-        return res
+        return self.or_posting(p1, self.reverse_posting(p2))
 
 
     def minus_posting(self, p1, p2):
@@ -666,7 +654,7 @@ class SAR_Project:
         print("Query: " + query)
         #Llista de les ids de les noticies
         result = self.solve_query(query)
-        print("Number of results: " + len(result))
+        print("Number of results: " + str(len(result)))
         if self.use_ranking:
             result = self.rank_result(result, query)   
         if self.show_snippet:
@@ -683,8 +671,8 @@ class SAR_Project:
         else:
             for i in range(0, len(result)):
                 print("#"+str(i+1))
-                print("Score: " + str(self.weight[result[i]])) 
-                print(result[i])
+                print("Score: " + str( self.weight[result[i]] if self.use_ranking else 0)) 
+                print(result[i]) # docID
                 if self.multifield:
                     if self.index.get("date", None) != None:
                         print(self.index['date'][result[i]])
@@ -692,7 +680,7 @@ class SAR_Project:
                         print(self.index['title'][result[i]])
                     if self.index.get("keywords", None) != None:
                         print(str(self.index['keywords'][result[i]][1])) #El [1] es per a agafar la llista potser estiga mal
-                print(s)
+
                 if i < len(result) -1:
                     print("----------------------------------------")
         print("========================================")
