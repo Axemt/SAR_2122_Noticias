@@ -217,7 +217,7 @@ class SAR_Project:
                         # self.index[token] = [(self.noticiaID, [idParaula])]       
                 for token, aparicions in diccionari.items():
                     posicions = diccionari_posicions[token]
-                    if token in self.index:
+                    if token in self.index['article']:
                         self.index['article'][token].append((self.noticiaID, aparicions, posicions))
                     else:
                         self.index['article'][token] = [(self.noticiaID, aparicions, posicions)]
@@ -225,6 +225,7 @@ class SAR_Project:
                 self.noticiaID += 1 #cada vegada ho incrementem perquè no hi haja dues notícies amb el mateix ID
         self.docID += 1 #ho incrementem ja al final
         pos = 1 #cada vegada pose la posició a 1 perquè siga la posició relativa de la notícia dins el document    
+    
     def tokenize(self, text):
         """
         NECESARIO PARA TODAS LAS VERSIONES
@@ -291,7 +292,7 @@ class SAR_Project:
             for i,j in self.index:
                 print("nº de tokens en '" + str(i) + "':" + str(len(j)))
         else:
-            print("nº de tokens en 'article':" + str(len(self.index)))
+            print("nº de tokens en 'article':" + str(len(self.index['article'].keys())))
         print("----------------------------------------")
         if self.permuterm:
             print("PERMUTERMS:")
