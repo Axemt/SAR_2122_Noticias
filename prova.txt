@@ -1,0 +1,13 @@
+cultura
+cultura AND date:2015-01-21
+cultura AND NOT date:2015-01-21
+móvil
+keywords:nervioso
+móvil AND keywords:nervioso
+economía
+keywords:precio
+economía OR keywords:precio
+guerra
+keywords:EEUU
+guerra OR keywords:EEUU
+guerra OR keywords:EEUU

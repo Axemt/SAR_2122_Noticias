@@ -160,7 +160,12 @@ class SAR_Project:
                 if filename.endswith('.json'):
                     fullname = os.path.join(dir, filename)
                     self.index_file(fullname)
-
+                    
+        # Tot l'index generat: fer permuterm
+        if self.permuterm:
+            self.make_permuterm()
+        if self.stemming:
+            self.make_stemming()
         #Per fer el càlcul dels pesats, el nombre de noticies en les quals apareix un terme es la longitud de la seua posting list i el nombre d'aparicions en una determinada
         #notícia seria la longitud del segon element de la tupla, perquè té la forma (noticiaID, [pos1, ..., posN])
         #Per fer multifield
@@ -191,41 +196,54 @@ class SAR_Project:
         #      "title", "date", "keywords", "article", "summary"
         #
         # En la version basica solo se debe indexar el contenido "article"
-        #
+        # 
         #
         #
         #Enllacem el docID del document en qüestió amb el seu path
         self.docs[self.docID] = filename
-        pos = 0 #pos marcarà en quina posició se troba cada notícia en el document del qual forma part
+        pos = 0 #pos marcarà en quina posició se troba cada notícia en el document del qual forma part, és la posició relativa
         with open(filename) as fh:
             jlist = json.load(fh)
             for noticia in jlist: #és un diccionari
                 diccionari = {} #per a cadascuna de les notícies ens creem un diccionari auxiliar que conte les vegades que ha aparegut
                 diccionari_posicions = {} #i guardem també les posicions on apareix cada token en eixa notícia
-                tokens = self.tokenize(noticia['article']) #tokenitzem la notícia
-                self.news[self.noticiaID] = (self.docID, pos, len(tokens)) #guardem una tupla del document on se troba la notícia i la seua posició en ell
-                for index, token in enumerate(tokens):
-                    diccionari[token] = diccionari.get(token, 0) + 1
-                    if token in diccionari_posicions:
-                        diccionari_posicions[token].append(index) #si ja existia ho afegim al final
-                        #Per a cerques posicionals:
-                        #aux = self.index[token]
-                        #Ara faltaria saber com mirar si la notícia ja està dins o no, perquè lo que tenim és una llista de tuples, hauríem de recórrer-la tota? 
-                        #S'hauria de discutir, preguntar-li en classe
-                    else: #si no existeix, creem una llista amb la notícia on l'hem trobat com a primer element
-                        diccionari_posicions[token] = [index]
-                        #Per a cerques posicionals: Tal volta és millor idea utilitzar un diccionari per a cada terme i té com a clau noticiaID i com a valor la llista de posicions
-                        # self.index[token] = [(self.noticiaID, [idParaula])]       
-                for token, aparicions in diccionari.items():
-                    posicions = diccionari_posicions[token]
-                    if token in self.index['article']:
-                        self.index['article'][token].append((self.noticiaID, aparicions, posicions))
+                diccionari['article'] = {}
+                diccionari_posicions['article'] = {}
+                tokens = {}
+                tokens['article'] = self.tokenize(noticia['article']) #tokenitzem la notícia
+                self.news[self.noticiaID] = (self.docID, pos, len(tokens['article'])) #guardem una tupla del document on se troba la notícia i la seua posició en ell i la longitud de l'article per fer el ranquing     
+                if self.multifield:
+                    diccionari['summary'] = {}
+                    diccionari['title'] = {}
+                    diccionari['keywords'] = {}
+                    diccionari_posicions['summary'] = {}
+                    diccionari_posicions['title'] = {}
+                    diccionari_posicions['keywords'] = {}
+                    tokens['summary'] = self.tokenize(noticia['summary'])
+                    tokens['keywords'] = self.tokenize(noticia['keywords'])
+                    tokens['title'] = self.tokenize(noticia['title'])
+                    if noticia['date'] in self.index['date']:
+                        self.index['date'][noticia['date']].append(self.noticiaID)
                     else:
-                        self.index['article'][token] = [(self.noticiaID, aparicions, posicions)]
+                        self.index['date'][noticia['date']] = [self.noticiaID]
+                for field in tokens.keys():
+                    tokens_field = tokens[field] #ho tenim de manera que és un diccionari amb els tokens per cada camp
+                    for index,token in enumerate(tokens_field):
+                        diccionari[field][token] = diccionari[field].get(token, 0) + 1
+                        if token in diccionari_posicions[field]:
+                            diccionari_posicions[field][token].append(index) #si ja existia ho afegim al final
+                        else: #si no existeix, creem una llista amb la notícia on l'hem trobat com a primer element
+                            diccionari_posicions[field][token] = [index]
+                for field in diccionari.keys():
+                    for token, aparicions in diccionari[field].items():
+                        posicions = diccionari_posicions[field][token]
+                        if token in self.index[field]:
+                            self.index[field][token].append((self.noticiaID, aparicions, posicions))
+                        else:
+                            self.index[field][token] = [(self.noticiaID, aparicions, posicions)]
                 pos += 1
                 self.noticiaID += 1 #cada vegada ho incrementem perquè no hi haja dues notícies amb el mateix ID
-        self.docID += 1 #ho incrementem ja al final
-        pos = 1 #cada vegada pose la posició a 1 perquè siga la posició relativa de la notícia dins el document    
+        self.docID += 1 #ho incrementem ja al final 
     
     def tokenize(self, text):
         """
@@ -248,12 +266,33 @@ class SAR_Project:
         NECESARIO PARA LA AMPLIACION DE STEMMING.
 
         Crea el indice de stemming (self.sindex) para los terminos de todos los indices.
-
+        sindex té clave: stem, valor: lista con los terminos que tienen ese stem
         self.stemmer.stem(token) devuelve el stem del token
 
         """
-        
-        pass
+        ocurrStem = 0
+        for token in self.index['article']:
+            stem = self.stemmer.stem(self.index['article'][token])
+
+            for (_, aparicions, _) in self.index['article'][token]:
+                ocurr += aparicions
+            ocurrStem += ocurr
+            
+            self.sindex['article'][stem] = (ocurrStem, self.sindex['article'][stem][1] + [token])
+            
+        if self.multifield:
+            fields = ['keywords', 'title', 'summary']
+
+            for f in fields:
+                #for token in self.index['article']:
+                stem = self.stemmer.stem(self.index[f][token])
+
+                for (_, aparicions, _) in self.index[f][token]:
+                    ocurr += aparicions
+                ocurrStem += ocurr
+                
+                self.sindex[f][stem] = (ocurrStem, self.sindex[f][stem][1] + [token])
+        # keyword title summary
         ####################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
         ####################################################
@@ -267,11 +306,54 @@ class SAR_Project:
         Crea el indice permuterm (self.ptindex) para los terminos de todos los indices.
 
         """
-        pass
         ####################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
         ####################################################
+        
+        # self.permuterm layout:
+        #
+        # 'bc$a' -> 'abc' ?
+        # o mejor
+        # 'bc$a' -> [postinglist de abc] ?
 
+        # Yo prefiero primera opcion porque es mas sencilla,
+        # no hay que preocuparse de que la postinglist resultante este en orden
+        # y de todos modos hay que comprobar si el termino retornado se ajusta a la query
+        self.ptindex['article'] = {}
+        for k in self.index['article'].keys():
+        
+            # rotate word 
+            wordstack = list(k) + ['$']
+
+            exitGuard =  True
+            while exitGuard:
+
+                if wordstack[0] == '$':
+                    exitGuard = False # exit next iteration
+
+                term = ''.join(wordstack)   
+                self.ptindex['article'][term] = self.ptindex['article'].get(term, []) + [k]   
+                wordstack.append(wordstack.pop(0))
+
+        
+        if self.multifield:
+
+            for field in ['keywords', 'summary', 'title']:
+                self.ptindex[field] = {}
+
+                for k in self.index[field].keys():
+                    # rotate word 
+                    wordstack = list(k) + ['$']
+
+                    exitGuard =  True
+                    while exitGuard:
+                    
+                        if wordstack[0] == '$':
+                            exitGuard = False # exit next iteration
+
+                        term = ''.join(wordstack)   
+                        self.ptindex[field][term] = self.ptindex[field].get(term, []) + [k]   
+                        wordstack.append(wordstack.pop(0))
 
 
     #estadistiques Indexador
@@ -345,11 +427,19 @@ class SAR_Project:
         p1 = []
         i = 1
         if termes[0] == "NOT":
-            p1 = self.get_posting(termes[1])
+            if self.multifield and ":" in termes[1]:
+                [camp, terme] = termes[1].split(":")
+                p1 = self.get_posting(terme, camp)
+            else: 
+                p1 = self.get_posting(termes[1])
             p1 = self.reverse_posting(p1)
             i += 1
         else:
-            p1 = self.get_posting(termes[0])
+            if self.multifield and ":" in termes[0]:
+                [camp, terme] = termes[0].split(":")
+                p1 = self.get_posting(terme, camp)
+            else: 
+                p1 = self.get_posting(termes[0])
         while i < len(termes):
             op = ""
             if termes[i + 1] == "NOT":
@@ -364,9 +454,14 @@ class SAR_Project:
                 else:
                     op = self.or_posting
                 nova_i = i + 2 #hem d'indicar a on s'avança, 2 o 3 més segons si tenim NOT o no
-            p2 = self.get_posting(termes[nova_i - 1]) #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
+            if self.multifield and ":" in termes[nova_i - 1]:
+                [camp, terme] = termes[nova_i - 1].split(":")
+                p2 = self.get_posting(terme, camp)
+            else:
+                p2 = self.get_posting(termes[nova_i - 1]) #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
             p1 = op(p1,p2) #en p1 anem guardant les llistes amb els resultats parcials de la nostra consulta
             i = nova_i
+            
         return p1
 
     def get_posting(self, term, field='article'):
@@ -392,8 +487,12 @@ class SAR_Project:
         #for noticia, _ in self.index[term]:
         #   posting_list.append(noticia)
         #return posting_list
-        return [x[0] for x in self.index[field][term]] #si no existeix el term en l'índex inveritt tornem la llista buida
-
+        if term not in self.index[field]:
+            return []
+        if field != 'date':
+            return [x[0] for x in self.index[field][term]] #si no existeix el term en l'índex inveritt tornem la llista buida
+        else: 
+            return [x for x in self.index[field][term]] #si no existeix el term en l'índex invertit tornem la llista buida
     def get_positionals(self, terms, field='article'):
         """
         NECESARIO PARA LA AMPLIACION DE POSICIONALES
@@ -422,11 +521,25 @@ class SAR_Project:
                 "field": campo sobre el que se debe recuperar la posting list, solo necesario se se hace la ampliacion de multiples indices
 
         return: posting list
-
+        AFEGIR CONTEIG DE CADA DOCid PER A CADA STEM
         """
         
         stem = self.stemmer.stem(term)
-
+        
+        if self.sindex.get(field, None) != None:
+            lstem = self.sindex[field][stem][1] # llista de paraules amb l'stem
+            p1 = self.index[field][lstem][0] # Cuidador revisar pq lista 1 elem
+            
+            if len(lstem) == 1:
+                return p1
+            else:
+                i = 1
+                while i < lstem:
+                    p1 = self.or_posting(p1, self.index[field][lstem][i])
+                    i += 1
+        else: 
+            return []
+        return p1
         ####################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
         ####################################################
@@ -444,7 +557,45 @@ class SAR_Project:
         return: posting list
 
         """
+        #(ca*ca) => ca$ca*
 
+        #permuterm => terme orig
+        #asaca$c => casaca
+        #saca$ca => casaca
+        #ca$casa => casaca
+        #(casaca)
+
+        # find target permutation for search
+        # 'term' contains *, get * to leftmost
+        wordstack = list(term) + ['$']
+
+        while wordstack[0] != '*':
+            wordstack.append(wordstack.pop(0))
+        
+        # '*' in wordstack[0]
+        wordstack.append(wordstack.pop(0))
+        # term has form ab..$cd..*
+
+        term = ''.join(wordstack).replace('*','')
+
+        res = []
+        for k in self.ptindex[field].keys():
+            left_acum = []
+            if k.startswith(term):
+                # get list of terms fullfilling the query
+                fullfils_q = self.ptindex[field][k]
+                # get postings of terms
+
+                # foldr(left_acum, self.or_posting, [self.index[field][term] for term in fullfills_q])
+                for t in fullfils_q:
+                    # union of term postings
+                    # filter self.index[field][t] to only noticiaIDs
+                    left_acum = self.or_posting(left_acum, [ x[0] for x in self.index[field][t] ])
+
+            if left_acum != []: # a term was found with prefix matching
+                res = self.or_posting(res, left_acum)
+
+        return res
         ##################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA PERMUTERM ##
         ##################################################
@@ -485,7 +636,7 @@ class SAR_Project:
         return res
 
 
-    def and_posting(self, p1, p2): #VIOLETA
+    def and_posting(self, p1, p2): 
         """
         NECESARIO PARA TODAS LAS VERSIONES
         Calcula el AND de dos posting list de forma EFICIENTE
@@ -508,7 +659,7 @@ class SAR_Project:
                 idxb += 1
         return res
 
-    def and_not_posting(self, p1, p2): #VIOLETA
+    def and_not_posting(self, p1, p2): 
         """
         NECESARIO PARA TODAS LAS VERSIONES
         Calcula el ANDNOT de dos posting list de forma EFICIENTE
@@ -700,7 +851,7 @@ class SAR_Project:
         print("Query: " + query)
         #Llista de les ids de les noticies
         result = self.solve_query(query)
-        print("Number of results: " + str(len(result)))
+        print("Number of results: " + str(len(result) if result != [] else 0))
         if self.use_ranking:
             result = self.rank_result(result, query)
         
