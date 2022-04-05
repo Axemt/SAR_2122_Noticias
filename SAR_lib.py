@@ -187,42 +187,6 @@ class SAR_Project:
         #
         #Enllacem el docID del document en qüestió amb el seu path
         self.docs[self.docID] = filename
-
-        pos = 1 #pos marcarà en quina posició se troba cada notícia en el document del qual forma part
-        with open(filename) as fh:
-            jlist = json.load(fh)
-            for noticia in jlist: #és un diccionari
-                self.news[self.noticiaID] = (self.docID, pos) #guardem una tupla del document on se troba la notícia i la seua posició en ell
-                tokens = self.tokenize(noticia['article']) #tokenitzem la notícia
-                #Per a cerques posicionals:
-                #idParaula = 1
-                for token in tokens:
-                    #Per a implementar el multifield aço s'haurà de canviar de manera que en lloc de consultar self.index[token] se consulte self.index['article'][token] i de més
-                    #Per a calcular els pesats, primer calculem la freqüència: pensar si se pot posar en index
-                    #if token in self.frequencies: #si es la primera vegada que trobem el token
-                    #   documents, frequencia = self.frequencies[token]
-                    #   documents.add(docID)
-                    #   self.frequencies[token] = (documents, frequencia + 1)
-                    #else:
-                    #   self.frequencies[token] = ({docID}, 1) #utilitzarem sets en lloc de llistes perquè evita repetits
-                    if token in self.index: 
-                        self.index[token].append(self.noticiaID) #si ja existia ho afegim al final
-                        #Per a cerques posicionals:
-                        #aux = self.index[token]
-                        #Ara faltaria saber com mirar si la notícia ja està dins o no, perquè lo que tenim és una llista de tuples, hauríem de recórrer-la tota? 
-                        #S'hauria de discutir, preguntar-li en classe
-                    else: #si no existeix, creem una llista amb la notícia on l'hem trobat com a primer element
-                        self.index[token] = [self.noticiaID] 
-                        #Per a cerques posicionals: Tal volta és millor idea utilitzar un diccionari per a cada terme i té com a clau noticiaID i com a valor la llista de posicions
-                        # self.index[token] = [(self.noticiaID, [idParaula])]       
-                pos += 1
-                self.noticiaID += 1 #cada vegada ho incrementem perquè no hi haja dues notícies amb el mateix ID
-        self.docID += 1 #ho incrementem ja al final
-                
-        
-
-
-
         pos = 1 #pos marcarà en quina posició se troba cada notícia en el document del qual forma part
         with open(filename) as fh:
             jlist = json.load(fh)
@@ -428,9 +392,6 @@ class SAR_Project:
         #return posting_list
 
         return self.index.get(term, []) #si no existeix el term en l'índex inveritt tornem la llista buida
-
-
-
 
     def get_positionals(self, terms, field='article'):
         """
