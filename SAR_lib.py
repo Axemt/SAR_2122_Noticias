@@ -317,7 +317,7 @@ class SAR_Project:
             for f in fields:
                 
                 for token in self.index[f]:
-                    stem = self.stemmer.stem(self.index[f][token])
+                    stem = self.stemmer.stem(token)
                     ocurr = 0
                     ocurrStem = 0
                     for (_, aparicions, _) in self.index[f][token]:
@@ -460,7 +460,7 @@ class SAR_Project:
 
         if query is None or len(query) == 0:
             return []
-        termes = query.split(" ") #separem per espais per tindre tots els termes de la consulta (inclosos AND, NOT i OR)
+        termes = query.lower().split(" ") #separem per espais per tindre tots els termes de la consulta (inclosos AND, NOT i OR)
         p1 = []
         i = 1
         if termes[0] == "NOT":
@@ -474,7 +474,7 @@ class SAR_Project:
         else:
             if self.multifield and ":" in termes[0]:
                 [camp, terme] = termes[0].split(":")
-                p1 = self.get_posting(terme, camp)
+                p1 = self.get_posting(terme, field=camp)
             else: 
                 p1 = self.get_posting(termes[0])
         while i < len(termes):
@@ -493,7 +493,7 @@ class SAR_Project:
                 nova_i = i + 2 #hem d'indicar a on s'avança, 2 o 3 més segons si tenim NOT o no
             if self.multifield and ":" in termes[nova_i - 1]:
                 [camp, terme] = termes[nova_i - 1].split(":")
-                p2 = self.get_posting(terme, camp)
+                p2 = self.get_posting(terme, field=camp)
             else:
                 p2 = self.get_posting(termes[nova_i - 1]) #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
             p1 = op(p1,p2) #en p1 anem guardant les llistes amb els resultats parcials de la nostra consulta
@@ -525,19 +525,17 @@ class SAR_Project:
         #   posting_list.append(noticia)
         #return posting_list
 
-        
         #si no existeix el term en l'índex inveritt tornem la llista buida
+        if self.permuterm and '*' in term or '?' in term:
+            return self.get_permuterm(term, field=field)
         if self.use_stemming:
-            return self.get_stemming(term, field) 
-        if self.permuterm and '*' in term:
-            return self.get_permuterm(term)
+            return self.get_stemming(term, field=field) 
         if term not in self.index[field]:
             return []
 
-        return [x[0] for x in self.index[field][term]]        
-        #if field != 'date':
+        if field != 'date':
             #return [x[0] for x in self.index[field][term]] #si no existeix el term en l'índex inveritt tornem la llista buida
-        #else: 
+        else: 
             #return [x for x in self.index[field][term]] #si no existeix el term en l'índex invertit tornem la llista buida
 
     def get_positionals(self, terms, field='article'):
@@ -619,19 +617,23 @@ class SAR_Project:
         # 'term' contains *, get * to leftmost
         wordstack = list(term) + ['$']
 
-        while wordstack[0] != '*':
+        # permuterm queries with '*' and '?
+        while wordstack[0] not in  ['*', '?']:
             wordstack.append(wordstack.pop(0))
         
-        # '*' in wordstack[0]
+        # '*/?' in wordstack[0]
         wordstack.append(wordstack.pop(0))
         # term has form ab..$cd..*
 
-        term = ''.join(wordstack).replace('*','')
+        is_qmark = '?' in term
+        term = ''.join(wordstack).replace('*','').replace('?','')
 
         res = []
         for k in self.ptindex[field].keys():
             left_acum = []
             if k.startswith(term):
+                if is_qmark and len(k) != len(term) + 1:
+                    continue
                 # get list of terms fullfilling the query
                 fullfils_q = self.ptindex[field][k]
                 # get postings of terms
