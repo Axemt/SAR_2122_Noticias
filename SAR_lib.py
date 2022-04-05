@@ -158,16 +158,7 @@ class SAR_Project:
                 if filename.endswith('.json'):
                     fullname = os.path.join(dir, filename)
                     self.index_file(fullname)
-
-        #Per fer el càlcul dels pesats, el nombre de noticies en les quals apareix un terme es la longitud de la seua posting list i el nombre d'aparicions en una determinada
-        #notícia seria la longitud del segon element de la tupla, perquè té la forma (noticiaID, [pos1, ..., posN])
-        #Per fer multifield
-
-        ##########################################
-        ## COMPLETAR PARA FUNCIONALIDADES EXTRA ##
-        ##########################################
-        
-
+                    
     def index_file(self, filename):
         """
         NECESARIO PARA TODAS LAS VERSIONES
@@ -215,6 +206,7 @@ class SAR_Project:
                     tokens['summary'] = self.tokenize(noticia['summary'])
                     tokens['keywords'] = self.tokenize(noticia['keywords'])
                     tokens['title'] = self.tokenize(noticia['title'])
+                    self.index['date'][noticia['date']] = self.noticiaID
                 for field in tokens.keys():
                     tokens_field = tokens[field] #ho tenim de manera que és un diccionari amb els tokens per cada camp
                     for index,token in enumerate(tokens_field):
@@ -230,7 +222,6 @@ class SAR_Project:
                             self.index[field][token].append((self.noticiaID, aparicions, posicions))
                         else:
                             self.index[field][token] = [(self.noticiaID, aparicions, posicions)]
-                self.index['date'][noticia['date']] = self.noticiaID
                 pos += 1
                 self.noticiaID += 1 #cada vegada ho incrementem perquè no hi haja dues notícies amb el mateix ID
         self.docID += 1 #ho incrementem ja al final 
@@ -393,11 +384,19 @@ class SAR_Project:
         p1 = []
         i = 1
         if termes[0] == "NOT":
-            p1 = self.get_posting(termes[1])
+            if self.multifield and ":" in termes[1]:
+                [camp, terme] = termes[1].split(" ")
+                p1 = self.get_posting(terme, camp)
+            else: 
+                p1 = self.get_posting(termes[1])
             p1 = self.reverse_posting(p1)
             i += 1
         else:
-            p1 = self.get_posting(termes[0])
+            if self.multifield and ":" in termes[1]:
+                [camp, terme] = termes[0].split(" ")
+                p1 = self.get_posting(terme, camp)
+            else: 
+                p1 = self.get_posting(termes[0])
         while i < len(termes):
             op = ""
             if termes[i + 1] == "NOT":
@@ -412,7 +411,11 @@ class SAR_Project:
                 else:
                     op = self.or_posting
                 nova_i = i + 2 #hem d'indicar a on s'avança, 2 o 3 més segons si tenim NOT o no
-            p2 = self.get_posting(termes[nova_i - 1]) #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
+            if self.multifield and ":" in termes[nova_i - 1]:
+                [camp, terme] = termes[nova_i - 1].split(" ")
+                p2 = self.get_posting(terme, camp)
+            else:
+                p2 = self.get_posting(termes[nova_i - 1]) #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
             p1 = op(p1,p2) #en p1 anem guardant les llistes amb els resultats parcials de la nostra consulta
             i = nova_i
         return p1
