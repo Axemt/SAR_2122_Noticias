@@ -161,6 +161,7 @@ class SAR_Project:
 
         # Tot l'index generat: fer permuterm
         self.make_permuterm()
+        self.make_stemming()
 
         #Per fer el càlcul dels pesats, el nombre de noticies en les quals apareix un terme es la longitud de la seua posting list i el nombre d'aparicions en una determinada
         #notícia seria la longitud del segon element de la tupla, perquè té la forma (noticiaID, [pos1, ..., posN])
@@ -263,28 +264,43 @@ class SAR_Project:
         self.stemmer.stem(token) devuelve el stem del token
 
         """
-        ocurrStem = 0
+        self.sindex['article'] = {}
+        if self.multifield:
+            self.sindex['title'] = {}
+            self.sindex['keywords'] = {}
+            self.sindex['summary'] = {}  
+        
         for token in self.index['article']:
-            stem = self.stemmer.stem(self.index['article'][token])
-
+            stem = self.stemmer.stem(token)
+            ocurr = 0
+            ocurrStem = 0
             for (_, aparicions, _) in self.index['article'][token]:
                 ocurr += aparicions
             ocurrStem += ocurr
+            if stem not in self.sindex['article']:
+                self.sindex['article'][stem] = (ocurrStem, [token])
+            else:
+                self.sindex['article'][stem] = (self.sindex['article'][stem][0] + ocurrStem, self.sindex['article'][stem][1] + [token]) 
             
-            self.sindex['article'][stem] = (ocurrStem, self.sindex['article'][stem][1] + [token])
             
         if self.multifield:
             fields = ['keywords', 'title', 'summary']
-
+            
             for f in fields:
-                #for token in self.index['article']:
-                stem = self.stemmer.stem(self.index[f][token])
-
-                for (_, aparicions, _) in self.index[f][token]:
-                    ocurr += aparicions
-                ocurrStem += ocurr
                 
-                self.sindex[f][stem] = (ocurrStem, self.sindex[f][stem][1] + [token])
+                for token in self.index[f]:
+                    stem = self.stemmer.stem(self.index[f][token])
+                    ocurr = 0
+                    ocurrStem = 0
+                    for (_, aparicions, _) in self.index[f][token]:
+                        ocurr += aparicions
+                    ocurrStem += ocurr
+
+                    if stem not in self.sindex[f]:
+                        self.sindex[f][stem] = (ocurrStem, [token])
+                    else:
+                        self.sindex[f][stem] = (self.sindex[f][stem][0] + ocurrStem, self.sindex[f][stem][1] + [token])
+                
         # keyword title summary
         ####################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
@@ -377,7 +393,7 @@ class SAR_Project:
             print("----------------------------------------")
         if self.stemming:
             print("STEMS:")
-            for i,j in self.sindex:
+            for i,j in self.sindex.items():
                 print("nº de permuterms en '" + str(i) + "':" + str(len(j)))
             print("----------------------------------------")
         if self.positional: # -O
@@ -482,7 +498,10 @@ class SAR_Project:
         #return posting_list
 
         #si no existeix el term en l'índex inveritt tornem la llista buida
+        if self.use_stemming:
+            return self.get_stemming(term, field) 
         return [x[0] for x in self.index[field][term]] if '*' not in term else self.get_permuterm(term)
+        
 
     def get_positionals(self, terms, field='article'):
         """
@@ -517,20 +536,23 @@ class SAR_Project:
         
         stem = self.stemmer.stem(term)
         
-        if self.sindex.get(field, None) != None:
+        if self.sindex[field].get(stem, None) != None:
             lstem = self.sindex[field][stem][1] # llista de paraules amb l'stem
-            p1 = self.index[field][lstem][0] # Cuidador revisar pq lista 1 elem
+            
+            # p1 es la llista composada per l'element 0 de la llista de paraules amb un mateix stem
+            p1 = [x[0] for x in self.index[field][lstem[0]]] 
             
             if len(lstem) == 1:
                 return p1
             else:
                 i = 1
-                while i < lstem:
-                    p1 = self.or_posting(p1, self.index[field][lstem][i])
+                while i < len(lstem):
+                    p1 = self.or_posting(p1, [x[0] for x in self.index[field][lstem[i]]])
                     i += 1
+                return p1    
         else: 
             return []
-        return p1
+        
         ####################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
         ####################################################
