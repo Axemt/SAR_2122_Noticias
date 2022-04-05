@@ -158,7 +158,19 @@ class SAR_Project:
                 if filename.endswith('.json'):
                     fullname = os.path.join(dir, filename)
                     self.index_file(fullname)
-                    
+
+        # Tot l'index generat: fer permuterm
+        self.make_permuterm()
+
+        #Per fer el càlcul dels pesats, el nombre de noticies en les quals apareix un terme es la longitud de la seua posting list i el nombre d'aparicions en una determinada
+        #notícia seria la longitud del segon element de la tupla, perquè té la forma (noticiaID, [pos1, ..., posN])
+        #Per fer multifield
+
+        ##########################################
+        ## COMPLETAR PARA FUNCIONALIDADES EXTRA ##
+        ##########################################
+        
+
     def index_file(self, filename):
         """
         NECESARIO PARA TODAS LAS VERSIONES
@@ -180,7 +192,7 @@ class SAR_Project:
         #      "title", "date", "keywords", "article", "summary"
         #
         # En la version basica solo se debe indexar el contenido "article"
-        #
+        # 
         #
         #
         #Enllacem el docID del document en qüestió amb el seu path
@@ -247,12 +259,33 @@ class SAR_Project:
         NECESARIO PARA LA AMPLIACION DE STEMMING.
 
         Crea el indice de stemming (self.sindex) para los terminos de todos los indices.
-
+        sindex té clave: stem, valor: lista con los terminos que tienen ese stem
         self.stemmer.stem(token) devuelve el stem del token
 
         """
-        
-        pass
+        ocurrStem = 0
+        for token in self.index['article']:
+            stem = self.stemmer.stem(self.index['article'][token])
+
+            for (_, aparicions, _) in self.index['article'][token]:
+                ocurr += aparicions
+            ocurrStem += ocurr
+            
+            self.sindex['article'][stem] = (ocurrStem, self.sindex['article'][stem][1] + [token])
+            
+        if self.multifield:
+            fields = ['keywords', 'title', 'summary']
+
+            for f in fields:
+                #for token in self.index['article']:
+                stem = self.stemmer.stem(self.index[f][token])
+
+                for (_, aparicions, _) in self.index[f][token]:
+                    ocurr += aparicions
+                ocurrStem += ocurr
+                
+                self.sindex[f][stem] = (ocurrStem, self.sindex[f][stem][1] + [token])
+        # keyword title summary
         ####################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
         ####################################################
@@ -266,6 +299,9 @@ class SAR_Project:
         Crea el indice permuterm (self.ptindex) para los terminos de todos los indices.
 
         """
+        ####################################################
+        ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
+        ####################################################
         
         # self.permuterm layout:
         #
@@ -276,7 +312,7 @@ class SAR_Project:
         # Yo prefiero primera opcion porque es mas sencilla,
         # no hay que preocuparse de que la postinglist resultante este en orden
         # y de todos modos hay que comprobar si el termino retornado se ajusta a la query
-
+        self.ptindex['article'] = {}
         for k in self.index['article'].keys():
         
             # rotate word 
@@ -296,6 +332,7 @@ class SAR_Project:
         if self.multifield:
 
             for field in ['keywords', 'summary', 'title']:
+                self.ptindex[field] = {}
 
                 for k in self.index[field].keys():
                     # rotate word 
@@ -310,7 +347,6 @@ class SAR_Project:
                         term = ''.join(wordstack)   
                         self.ptindex[field][term] = self.ptindex[field].get(term, []) + [k]   
                         wordstack.append(wordstack.pop(0))
-
 
 
     #estadistiques Indexador
@@ -336,7 +372,7 @@ class SAR_Project:
         print("----------------------------------------")
         if self.permuterm:
             print("PERMUTERMS:")
-            for i,j in self.ptindex:
+            for i,j in self.ptindex.items():
                 print("nº de permuterms en '" + str(i) + "':" + str(len(j)))
             print("----------------------------------------")
         if self.stemming:
@@ -473,11 +509,25 @@ class SAR_Project:
                 "field": campo sobre el que se debe recuperar la posting list, solo necesario se se hace la ampliacion de multiples indices
 
         return: posting list
-
+        AFEGIR CONTEIG DE CADA DOCid PER A CADA STEM
         """
         
         stem = self.stemmer.stem(term)
-
+        
+        if self.sindex.get(field, None) != None:
+            lstem = self.sindex[field][stem][1] # llista de paraules amb l'stem
+            p1 = self.index[field][lstem][0] # Cuidador revisar pq lista 1 elem
+            
+            if len(lstem) == 1:
+                return p1
+            else:
+                i = 1
+                while i < lstem:
+                    p1 = self.or_posting(p1, self.index[field][lstem][i])
+                    i += 1
+        else: 
+            return []
+        return p1
         ####################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
         ####################################################
@@ -536,7 +586,7 @@ class SAR_Project:
         return res
 
 
-    def and_posting(self, p1, p2): #VIOLETA
+    def and_posting(self, p1, p2): 
         """
         NECESARIO PARA TODAS LAS VERSIONES
         Calcula el AND de dos posting list de forma EFICIENTE
@@ -559,7 +609,7 @@ class SAR_Project:
                 idxb += 1
         return res
 
-    def and_not_posting(self, p1, p2): #VIOLETA
+    def and_not_posting(self, p1, p2): 
         """
         NECESARIO PARA TODAS LAS VERSIONES
         Calcula el ANDNOT de dos posting list de forma EFICIENTE
