@@ -485,19 +485,21 @@ class SAR_Project:
         """
         
         stem = self.stemmer.stem(term)
-        # p1 = []
-        i = 1
-        p1 = self.sindex[stem][1]
-        p1 = self.or_posting(p1)
-
-
-        i += 1
-
-        while i < len(self.sindex[])
-
-        for nOcurr, ltoken in self.sindex[stem]:
-            res =+ ltoken
-        return self.sindex[field][stem]
+        
+        if self.sindex.get(field, None) != None:
+            lstem = self.sindex[field][stem][1] # llista de paraules amb l'stem
+            p1 = self.index[field][lstem][0] # Cuidador revisar pq lista 1 elem
+            
+            if len(lstem) == 1:
+                return p1
+            else:
+                i = 1
+                while i < lstem:
+                    p1 = self.or_posting(p1, self.index[field][lstem][i])
+                    i += 1
+        else: 
+            return []
+        return p1
         ####################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
         ####################################################
