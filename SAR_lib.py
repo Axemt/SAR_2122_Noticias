@@ -4,6 +4,7 @@ from unittest import result
 from nltk.stem.snowball import SnowballStemmer
 import os
 import re
+import math;
 #Jaume te per fer:
 #show_stats, reverse_posting, solve_and_show
 class SAR_Project:
@@ -712,7 +713,25 @@ class SAR_Project:
         return: la lista de resultados ordenada
 
         """
-
+        queryList = query.split(" ")
+        command_list = ["NOT", "AND", "OR"]
+        doc_list = [x[0] for x in self.index]
+        docResult = dict()
+        N = len(self.news)
+        for wq in queryList:
+            if wq in command_list and wq not in self.index:
+                continue
+            wqList = self.index[wq]
+            idf = N/len(self.index[wq])
+            points = []
+            for d,n in wqList:
+                if d not in result:
+                    continue
+                tf = 1+math.log10(n)
+                idfxtf = tf*idf
+                docResult[d] = docResult.get(d,0) + idfxtf
+        
+        return [k for k, v in sorted(docResult.items(), key=lambda item: item[1])]
         pass
         
         ###################################################
