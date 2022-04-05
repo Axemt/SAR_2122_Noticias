@@ -1,9 +1,12 @@
+from contextlib import nullcontext
 import json
+import string
+from unittest import result
 from nltk.stem.snowball import SnowballStemmer
 import os
 import re
-
-
+#Jaume te per fer:
+#show_stats, reverse_posting, solve_and_show
 class SAR_Project:
     """
     Prototipo de la clase para realizar la indexacion y la recuperacion de noticias
@@ -36,7 +39,7 @@ class SAR_Project:
         Puedes añadir más variables si las necesitas 
 
         """
-        self.index = {} # hash para el indice invertido de terminos --> clave: termino, valor: posting list.
+        self.index = {} # hash para el indice invertido de terminos --> clave: termino, valor: posting list(de les notícies en les quals apareix).
                         # Si se hace la implementacion multifield, se pude hacer un segundo nivel de hashing de tal forma que:
                         # self.index['title'] seria el indice invertido del campo 'title'.
         self.sindex = {} # hash para el indice invertido de stems --> clave: stem, valor: lista con los terminos que tienen ese stem
@@ -50,14 +53,15 @@ class SAR_Project:
         self.show_snippet = False # valor por defecto, se cambia con self.set_snippet()
         self.use_stemming = False # valor por defecto, se cambia con self.set_stemming()
         self.use_ranking = False  # valor por defecto, se cambia con self.set_ranking()
-
-
+        #atributs de creació pròpia:
+        self.docID = 1 #portem un identificador global del document, inicialment en 1
+        self.noticiaID = 1 #portem un identificador global per a cada noticia
+        self.frequencies = {} #gastar-ho com a auxiliar per al pesado(weights) que només ho podem calcular una vegada estiguen ja totes les freqüències
     ###############################
     ###                         ###
     ###      CONFIGURACION      ###
     ###                         ###
     ###############################
-
 
     def set_showall(self, v):
         """
@@ -118,9 +122,9 @@ class SAR_Project:
         """
         self.use_ranking = v
 
+#endregion
 
-
-
+#region Indexacion
     ###############################
     ###                         ###
     ###   PARTE 1: INDEXACION   ###
@@ -132,7 +136,7 @@ class SAR_Project:
         """
         NECESARIO PARA TODAS LAS VERSIONES
         
-        Recorre recursivamente el directorio "root" e indexa su contenido
+        Recorre recursivamente el directorio "root" e indexa su contenido, hem de passar-ho sense / inicial, directament és 2015/1 per exemple
         los argumentos adicionales "**args" solo son necesarios para las funcionalidades ampliadas
 
         """
@@ -141,12 +145,23 @@ class SAR_Project:
         self.positional = args['positional']
         self.stemming = args['stem']
         self.permuterm = args['permuterm']
+        
+        self.index['article'] = {}
+        if self.multifield:
+            self.index['title'] = {}
+            self.index['date'] = {}
+            self.index['keywords'] = {}
+            self.index['summary'] = {}   
 
         for dir, subdirs, files in os.walk(root):
             for filename in files:
                 if filename.endswith('.json'):
                     fullname = os.path.join(dir, filename)
                     self.index_file(fullname)
+
+        #Per fer el càlcul dels pesats, el nombre de noticies en les quals apareix un terme es la longitud de la seua posting list i el nombre d'aparicions en una determinada
+        #notícia seria la longitud del segon element de la tupla, perquè té la forma (noticiaID, [pos1, ..., posN])
+        #Per fer multifield
 
         ##########################################
         ## COMPLETAR PARA FUNCIONALIDADES EXTRA ##
@@ -168,10 +183,6 @@ class SAR_Project:
                 Una vez parseado con json.load tendremos una lista de diccionarios, cada diccionario se corresponde a una noticia
 
         """
-
-        with open(filename) as fh:
-            jlist = json.load(fh)
-
         #
         # "jlist" es una lista con tantos elementos como noticias hay en el fichero,
         # cada noticia es un diccionario con los campos:
@@ -181,12 +192,39 @@ class SAR_Project:
         # 
         #
         #
-        #################
-        ### COMPLETAR ###
-        #################
-
-
-
+        #Enllacem el docID del document en qüestió amb el seu path
+        self.docs[self.docID] = filename
+        pos = 1 #pos marcarà en quina posició se troba cada notícia en el document del qual forma part
+        with open(filename) as fh:
+            jlist = json.load(fh)
+            for noticia in jlist: #és un diccionari
+                diccionari = {} #per a cadascuna de les notícies ens creem un diccionari auxiliar que conte les vegades que ha aparegut
+                diccionari_posicions = {} #i guardem també les posicions on apareix cada token en eixa notícia
+                tokens = self.tokenize(noticia['article']) #tokenitzem la notícia
+                self.news[self.noticiaID] = (self.docID, pos, len(tokens)) #guardem una tupla del document on se troba la notícia i la seua posició en ell
+                for index, token in enumerate(tokens):
+                    diccionari[token] = diccionari.get(token, 0) + 1
+                    if token in diccionari_posicions:
+                        diccionari_posicions[token].append(index) #si ja existia ho afegim al final
+                        #Per a cerques posicionals:
+                        #aux = self.index[token]
+                        #Ara faltaria saber com mirar si la notícia ja està dins o no, perquè lo que tenim és una llista de tuples, hauríem de recórrer-la tota? 
+                        #S'hauria de discutir, preguntar-li en classe
+                    else: #si no existeix, creem una llista amb la notícia on l'hem trobat com a primer element
+                        diccionari_posicions[token] = [index]
+                        #Per a cerques posicionals: Tal volta és millor idea utilitzar un diccionari per a cada terme i té com a clau noticiaID i com a valor la llista de posicions
+                        # self.index[token] = [(self.noticiaID, [idParaula])]       
+                for token, aparicions in diccionari.items():
+                    posicions = diccionari_posicions[token]
+                    if token in self.index['article']:
+                        self.index['article'][token].append((self.noticiaID, aparicions, posicions))
+                    else:
+                        self.index['article'][token] = [(self.noticiaID, aparicions, posicions)]
+                pos += 1
+                self.noticiaID += 1 #cada vegada ho incrementem perquè no hi haja dues notícies amb el mateix ID
+        self.docID += 1 #ho incrementem ja al final
+        pos = 1 #cada vegada pose la posició a 1 perquè siga la posició relativa de la notícia dins el document    
+    
     def tokenize(self, text):
         """
         NECESARIO PARA TODAS LAS VERSIONES
@@ -248,14 +286,54 @@ class SAR_Project:
         Crea el indice permuterm (self.ptindex) para los terminos de todos los indices.
 
         """
-        pass
-        ####################################################
-        ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
-        ####################################################
+        
+        # self.permuterm layout:
+        #
+        # 'bc$a' -> 'abc' ?
+        # o mejor
+        # 'bc$a' -> [postinglist de abc] ?
+
+        # Yo prefiero primera opcion porque es mas sencilla,
+        # no hay que preocuparse de que la postinglist resultante este en orden
+        # y de todos modos hay que comprobar si el termino retornado se ajusta a la query
+
+        for k in self.index['article'].keys():
+        
+            # rotate word 
+            wordstack = list(k) + ['$']
+
+            exitGuard =  True
+            while exitGuard:
+
+                if wordstack[0] == '$':
+                    exitGuard = False # exit next iteration
+
+                term = ''.join(wordstack)   
+                self.ptindex['article'][term] = self.ptindex['article'].get(term, []) + [k]   
+                wordstack.append(wordstack.pop(0))
+
+        
+        if self.multifield:
+
+            for field in ['keywords', 'summary', 'title']:
+
+                for k in self.index[field].keys():
+                    # rotate word 
+                    wordstack = list(k) + ['$']
+
+                    exitGuard =  True
+                    while exitGuard:
+                    
+                        if wordstack[0] == '$':
+                            exitGuard = False # exit next iteration
+
+                        term = ''.join(wordstack)   
+                        self.ptindex[field][term] = self.ptindex[field].get(term, []) + [k]   
+                        wordstack.append(wordstack.pop(0))
 
 
 
-
+    #estadistiques Indexador
     def show_stats(self):
         """
         NECESARIO PARA TODAS LAS VERSIONES
@@ -263,18 +341,38 @@ class SAR_Project:
         Muestra estadisticas de los indices
         
         """
-        pass
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
+        print("========================================")
+        print("Nombre de diaris indexats: " + str(len(self.docs)))
+        print("----------------------------------------")
+        print("Nombre de noticies indexades: " + str(len(self.news)))
+        print("----------------------------------------")
 
+        print("TOKENS:")
+        if self.multifield:
+            for i,j in self.index.items():
+                print("nº de tokens en '" + str(i) + "':" + str(len(j)))
+        else:
+            print("nº de tokens en 'article':" + str(len(self.index['article'].keys())))
+        print("----------------------------------------")
+        if self.permuterm:
+            print("PERMUTERMS:")
+            for i,j in self.ptindex:
+                print("nº de permuterms en '" + str(i) + "':" + str(len(j)))
+            print("----------------------------------------")
+        if self.stemming:
+            print("STEMS:")
+            for i,j in self.sindex:
+                print("nº de permuterms en '" + str(i) + "':" + str(len(j)))
+            print("----------------------------------------")
+        if self.positional: # -O
+            print("Les consultes posicionals estan permitides")
+        else:
+            print("Les consultes posicionals NO estan permitides")
+        print("========================================")
+
+#endregion
         
-
-
-
-
-
-
+#region Recuperacion
 
 
     ###################################
@@ -302,13 +400,33 @@ class SAR_Project:
 
         if query is None or len(query) == 0:
             return []
-
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
-
- 
-
+        termes = query.split(" ") #separem per espais per tindre tots els termes de la consulta (inclosos AND, NOT i OR)
+        p1 = []
+        i = 1
+        if termes[0] == "NOT":
+            p1 = self.get_posting(termes[1])
+            p1 = self.reverse_posting(p1)
+            i += 1
+        else:
+            p1 = self.get_posting(termes[0])
+        while i < len(termes):
+            op = ""
+            if termes[i + 1] == "NOT":
+                if termes[i] == "AND":
+                    op = self.and_not_posting
+                else:
+                    op = self.or_not_posting
+                nova_i = i + 3
+            else:
+                if termes[i] == "AND":
+                    op = self.and_posting
+                else:
+                    op = self.or_posting
+                nova_i = i + 2 #hem d'indicar a on s'avança, 2 o 3 més segons si tenim NOT o no
+            p2 = self.get_posting(termes[nova_i - 1]) #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
+            p1 = op(p1,p2) #en p1 anem guardant les llistes amb els resultats parcials de la nostra consulta
+            i = nova_i
+        return p1
 
     def get_posting(self, term, field='article'):
         """
@@ -322,17 +440,18 @@ class SAR_Project:
 
 
         param:  "term": termino del que se debe recuperar la posting list.
-                "field": campo sobre el que se debe recuperar la posting list, solo necesario se se hace la ampliacion de multiples indices
+                "field": campo sobre el que se debe recuperar la posting list, solo necesario si se hace la ampliacion de multiples indices
 
         return: posting list
 
         """
-        pass
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
-
-
+        #De moment funciona, però quan implementem les ampliacions, com per exemple per a cerques posicionals, que guardem cada noticia i en quina posició, ja no funcionarà,
+        #però simplement cal que ho recorrem:
+        #posting_list = []
+        #for noticia, _ in self.index[term]:
+        #   posting_list.append(noticia)
+        #return posting_list
+        return [x[0] for x in self.index[field][term]] #si no existeix el term en l'índex inveritt tornem la llista buida
 
     def get_positionals(self, terms, field='article'):
         """
@@ -418,12 +537,23 @@ class SAR_Project:
         return: posting list con todos los newid exceptos los contenidos en p
 
         """
-        
-        pass
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
+        len_p1 = len(self.news)
+        len_p2 = len(p)
+        res = []
+        p1 = 0 #p1 sempre es igual al nombre al que senyala. Es un comptador
+        p2 = 0
+        while p1 < len_p1 and p2 < len_p2:
+            if p[p2] > p1:
+                res.append(p1)
+                p1 +=1
+            else:
+                p1 +=1
+                p2 +=1
+        while p1 < len_p1:
+            res.append(p1)
+            p1 +=1
 
+        return res
 
 
     def and_posting(self, p1, p2): 
@@ -439,7 +569,6 @@ class SAR_Project:
         idxb = 0
         
         while idxa < len(p1) and idxb < len(p2):
-            print(idxa)
             if p1[idxa] == p2[idxb]:
                 res.append(p1[idxa])
                 idxa += 1
@@ -449,9 +578,6 @@ class SAR_Project:
             else:
                 idxb += 1
         return res
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
 
     def and_not_posting(self, p1, p2): 
         """
@@ -478,9 +604,6 @@ class SAR_Project:
             idxa += 1
 
         return res
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
 
 
     def or_posting(self, p1, p2):
@@ -495,12 +618,46 @@ class SAR_Project:
         return: posting list con los newid incluidos de p1 o p2
 
         """
+        idxa, idxb = 0,0
+        res = []
 
+        while idxa < len(p1) and idxb < len(p2):
+            if p1[idxa] < p2[idxb]:
+                res.append(p1[idxa])
+                idxa += 1
+            elif p1[idxa] == p2[idxb]:
+                res.append(p1[idxa])
+                idxa += 1
+                idxb += 1
+            else: # p1[idxa] > p2[idxb]
+                res.append(p2[idxb])
+                idxb += 1
         
-        pass
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
+        while idxa < len(p1):
+            res.append(p1[idxa])
+            idxa += 1
+
+        while idxb < len(p2):
+            res.append(p2[idxb])
+            idxb += 1
+
+        return res
+
+
+    def or_not_posting(self, p1, p2):
+        """
+        NECESARIO PARA TODAS LAS VERSIONES
+
+        Calcula el OR de dos posting list de forma EFICIENTE
+
+        param:  "p1", "p2": posting lists sobre las que calcular
+                p2 es la lista sobre la que se aplica NOT
+
+
+        return: posting list con los newid incluidos de p1 o p2
+
+        """
+        return self.or_posting(p1, self.reverse_posting(p2))
 
 
     def minus_posting(self, p1, p2):
@@ -522,9 +679,9 @@ class SAR_Project:
         ########################################################
         ## COMPLETAR PARA TODAS LAS VERSIONES SI ES NECESARIO ##
         ########################################################
+#endregion
 
-
-
+#region Mostrar resultados
 
 
     #####################################
@@ -550,7 +707,7 @@ class SAR_Project:
         return len(result)  # para verificar los resultados (op: -T)
 
 
-    def solve_and_show(self, query):
+    def solve_and_show(self, query): #Per als que tenen -Q
         """
         NECESARIO PARA TODAS LAS VERSIONES
 
@@ -565,16 +722,42 @@ class SAR_Project:
         return: el numero de noticias recuperadas, para la opcion -T
         
         """
+
+        #AVIS!!!!! L'accés al diccionari pot estar MAL i faltar algun [1]
+        print("========================================")
+        print("Query: " + query)
+        #Llista de les ids de les noticies
         result = self.solve_query(query)
+        print("Number of results: " + str(len(result)))
         if self.use_ranking:
             result = self.rank_result(result, query)   
+        if self.show_snippet:
+            for i in range(0, len(result)):
+                s = "#"+str(i+1) + "\t (" + str(self.weight[result[i]]) + ")" + " (" + str(result[i]) + ")"
+                if self.multifield:
+                    if self.index.get("date", None) != None:
+                        s += " (" + self.index['date'][result[i]] + ")"
+                    if self.index.get("title", None) != None:
+                        s += self.index['title'][result[i]]
+                    if self.index.get("keywords", None) != None:
+                        s += str(self.index['keywords'][result[i]][1])  #El [1] es per a agafar la llista potser estiga mal
+                print(s)
+        else:
+            for i in range(0, len(result)):
+                print("#"+str(i+1))
+                print("Score: " + str( self.weight[result[i]] if self.use_ranking else 0)) 
+                print(result[i]) # docID
+                if self.multifield:
+                    if self.index.get("date", None) != None:
+                        print(self.index['date'][result[i]])
+                    if self.index.get("title", None) != None:
+                        print(self.index['title'][result[i]])
+                    if self.index.get("keywords", None) != None:
+                        print(str(self.index['keywords'][result[i]][1])) #El [1] es per a agafar la llista potser estiga mal
 
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
-
-
-
+                if i < len(result) -1:
+                    print("----------------------------------------")
+        print("========================================")
 
     def rank_result(self, result, query):
         """
@@ -595,3 +778,4 @@ class SAR_Project:
         ###################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE RANKING ##
         ###################################################
+#endregion

@@ -2,7 +2,7 @@ import argparse
 import pickle
 import sys
 import time
-#test
+
 from SAR_lib import SAR_Project
 
 
@@ -34,6 +34,7 @@ if __name__ == "__main__":
 
     indexer = SAR_Project()
     t0 = time.time()
+    print(newsdir)
     indexer.index_dir(newsdir, **vars(args))
     t1 = time.time()
     with open(indexfile, 'wb') as fh:
