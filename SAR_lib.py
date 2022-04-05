@@ -454,6 +454,7 @@ class SAR_Project:
                 p2 = self.get_posting(termes[nova_i - 1]) #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
             p1 = op(p1,p2) #en p1 anem guardant les llistes amb els resultats parcials de la nostra consulta
             i = nova_i
+            
         return p1
 
     def get_posting(self, term, field='article'):
@@ -479,7 +480,9 @@ class SAR_Project:
         #for noticia, _ in self.index[term]:
         #   posting_list.append(noticia)
         #return posting_list
-        return [x[0] for x in self.index[field][term]] #si no existeix el term en l'índex inveritt tornem la llista buida
+
+        #si no existeix el term en l'índex inveritt tornem la llista buida
+        return [x[0] for x in self.index[field][term]] if '*' not in term else self.get_permuterm(term)
 
     def get_positionals(self, terms, field='article'):
         """
@@ -545,7 +548,45 @@ class SAR_Project:
         return: posting list
 
         """
+        #(ca*ca) => ca$ca*
 
+        #permuterm => terme orig
+        #asaca$c => casaca
+        #saca$ca => casaca
+        #ca$casa => casaca
+        #(casaca)
+
+        # find target permutation for search
+        # 'term' contains *, get * to leftmost
+        wordstack = list(term) + ['$']
+
+        while wordstack[0] != '*':
+            wordstack.append(wordstack.pop(0))
+        
+        # '*' in wordstack[0]
+        wordstack.append(wordstack.pop(0))
+        # term has form ab..$cd..*
+
+        term = ''.join(wordstack).replace('*','')
+
+        res = []
+        for k in self.ptindex[field].keys():
+            left_acum = []
+            if k.startswith(term):
+                # get list of terms fullfilling the query
+                fullfils_q = self.ptindex[field][k]
+                # get postings of terms
+
+                # foldr(left_acum, self.or_posting, [self.index[field][term] for term in fullfills_q])
+                for t in fullfils_q:
+                    # union of term postings
+                    # filter self.index[field][t] to only noticiaIDs
+                    left_acum = self.or_posting(left_acum, [ x[0] for x in self.index[field][t] ])
+
+            if left_acum != []: # a term was found with prefix matching
+                res = self.or_posting(res, left_acum)
+
+        return res
         ##################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA PERMUTERM ##
         ##################################################
@@ -758,7 +799,7 @@ class SAR_Project:
         print("Query: " + query)
         #Llista de les ids de les noticies
         result = self.solve_query(query)
-        print("Number of results: " + str(len(result)))
+        print("Number of results: " + str(len(result) if result != [] else 0))
         if self.use_ranking:
             result = self.rank_result(result, query)   
         if self.show_snippet:
