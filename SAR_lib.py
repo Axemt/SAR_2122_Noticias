@@ -517,18 +517,16 @@ class SAR_Project:
         #   posting_list.append(noticia)
         #return posting_list
 
-
-        if term not in self.index[field]:
-            return []
+        
         #si no existeix el term en l'índex inveritt tornem la llista buida
         if self.use_stemming:
             return self.get_stemming(term, field) 
         if self.permuterm and '*' in term:
             return self.get_permuterm(term)
-        return [x[0] for x in self.index[field][term]]
-        
+        if term not in self.index[field]:
+            return []
 
-        
+        return [x[0] for x in self.index[field][term]]        
         #if field != 'date':
             #return [x[0] for x in self.index[field][term]] #si no existeix el term en l'índex inveritt tornem la llista buida
         #else: 
