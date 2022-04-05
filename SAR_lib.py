@@ -145,6 +145,13 @@ class SAR_Project:
         self.positional = args['positional']
         self.stemming = args['stem']
         self.permuterm = args['permuterm']
+        
+        self.index['article'] = {}
+        if self.multifield:
+            self.index['title'] = {}
+            self.index['date'] = {}
+            self.index['keywords'] = {}
+            self.index['summary'] = {}   
 
         for dir, subdirs, files in os.walk(root):
             for filename in files:
@@ -199,15 +206,17 @@ class SAR_Project:
                     diccionari[token] = diccionari.get(token, 0) + 1
                     if token in diccionari_posicions:
                         diccionari_posicions[token].append(index) #si ja existia ho afegim al final
+                        diccionari[token] = diccionari[token] + 1
                         #Per a cerques posicionals:
                         #aux = self.index[token]
                         #Ara faltaria saber com mirar si la notícia ja està dins o no, perquè lo que tenim és una llista de tuples, hauríem de recórrer-la tota? 
                         #S'hauria de discutir, preguntar-li en classe
                     else: #si no existeix, creem una llista amb la notícia on l'hem trobat com a primer element
                         diccionari_posicions[token] = [index]
+                        diccionari[token] = 1
                         #Per a cerques posicionals: Tal volta és millor idea utilitzar un diccionari per a cada terme i té com a clau noticiaID i com a valor la llista de posicions
                         # self.index[token] = [(self.noticiaID, [idParaula])]       
-                for token, aparicions in diccionari:
+                for token, aparicions in diccionari.items():
                     posicions = diccionari_posicions[token]
                     if token in self.index:
                         self.index['article'][token].append((self.noticiaID, aparicions, posicions))
