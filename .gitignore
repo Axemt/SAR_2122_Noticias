@@ -119,3 +119,6 @@ boletinProyecto-1.pdf
 *.json
 # Generated parsing files
 *.bin
+
+# index
+idx
