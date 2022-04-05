@@ -178,7 +178,7 @@ class SAR_Project:
         #      "title", "date", "keywords", "article", "summary"
         #
         # En la version basica solo se debe indexar el contenido "article"
-        #
+        # 
         #
         #
         #################
@@ -212,6 +212,7 @@ class SAR_Project:
         self.stemmer.stem(token) devuelve el stem del token
 
         """
+        # docID, conteo, posicions
         
         pass
         ####################################################
@@ -341,7 +342,7 @@ class SAR_Project:
                 "field": campo sobre el que se debe recuperar la posting list, solo necesario se se hace la ampliacion de multiples indices
 
         return: posting list
-
+        AFEGIR CONTEIG DE CADA DOCid PER A CADA STEM
         """
         
         stem = self.stemmer.stem(term)
