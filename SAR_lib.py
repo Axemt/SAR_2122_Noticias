@@ -196,7 +196,7 @@ class SAR_Project:
         #
         #Enllacem el docID del document en qüestió amb el seu path
         self.docs[self.docID] = filename
-        pos = 1 #pos marcarà en quina posició se troba cada notícia en el document del qual forma part
+        pos = 0 #pos marcarà en quina posició se troba cada notícia en el document del qual forma part
         with open(filename) as fh:
             jlist = json.load(fh)
             for noticia in jlist: #és un diccionari
@@ -290,19 +290,19 @@ class SAR_Project:
 
         print("TOKENS:")
         if self.multifield:
-            for i,j in self.index:
-                print("nº de tokens en '" + str(i) + "':" + str(len(j)))
+            for i,j in self.index.items():
+                print("nº de tokens en '" + str(i) + "': " + str(len(j)))
         else:
             print("nº de tokens en 'article':" + str(len(self.index['article'].keys())))
         print("----------------------------------------")
         if self.permuterm:
             print("PERMUTERMS:")
-            for i,j in self.ptindex:
+            for i,j in self.ptindex.items():
                 print("nº de permuterms en '" + str(i) + "':" + str(len(j)))
             print("----------------------------------------")
         if self.stemming:
             print("STEMS:")
-            for i,j in self.sindex:
+            for i,j in self.sindex.items():
                 print("nº de permuterms en '" + str(i) + "':" + str(len(j)))
             print("----------------------------------------")
         if self.positional: # -O
@@ -651,6 +651,49 @@ class SAR_Project:
         return: el numero de noticias recuperadas, para la opcion -T
         
         """
+        
+        def make_snippet(newsID, article):
+            qList = query.split(" ")
+            commandList = ["AND", "OR", "NOT"]
+            qList = [x for x in qList if x not in commandList]
+            positionList = []
+            docID, newPos, longitud = self.news[newsID]
+            for wq in qList:
+                if wq in self.index['article'].keys():
+                    wqPosList = self.index['article'][wq]
+                    wqPosListTest = [x for x in wqPosList if x[0] == newsID][0]
+                    wqPosList = [x[2] for x in wqPosList if x[0] == newsID][0]
+                    
+                    for p in wqPosList:
+                        positionList.append((wq,p))
+
+            positionList = sorted(positionList, key= lambda x: x[1], reverse=False) #Major pos al principi. Menor al final
+            #Crear partes de stems...
+            snippetList = [[positionList[0][1]]]
+            cont = 0
+            lastpos = positionList[0][1]
+            for pi in range(1,len(positionList)):
+                if positionList[pi][1] -lastpos> 11:
+                    snippetList.append([])
+                    cont+=1
+                snippetList[cont].append(positionList[pi][1])
+                lastpos = positionList[pi][1]
+
+            noticia = self.tokenize(article)
+            noticiaWordSnippetList = []
+            for l in snippetList:
+                if len(l) == 1 and self.news[newsID][2] - l[0] > 5:
+                    noticiaWordSnippetList += noticia[l[0]:l[0] + 4] + ['...']
+                elif len(l) > 1:
+                    noticiaWordSnippetList += noticia[l[0]:l[-1]] + ['...']
+
+            #for wq in qList:
+            snippetRes = ""
+            for w_noticia in noticiaWordSnippetList:
+                snippetRes += w_noticia + " "
+
+            return snippetRes
+
 
         #AVIS!!!!! L'accés al diccionari pot estar MAL i faltar algun [1]
         print("========================================")
@@ -659,62 +702,44 @@ class SAR_Project:
         result = self.solve_query(query)
         print("Number of results: " + str(len(result)))
         if self.use_ranking:
-            result = self.rank_result(result, query)   
+            result = self.rank_result(result, query)
+        
+        if not self.show_all and len(result) >= 10:
+            result = result[0:10]
         if self.show_snippet:
             for i in range(0, len(result)):
-                s = "#"+str(i+1) + "\t (" + str(self.weight[result[i]]) + ")" + " (" + str(result[i]) + ")"
-                if self.multifield:
-                    if self.index.get("date", None) != None:
-                        s += " (" + self.index['date'][result[i]] + ")"
-                    if self.index.get("title", None) != None:
-                        s += self.index['title'][result[i]]
-                    if self.index.get("keywords", None) != None:
-                        s += str(self.index['keywords'][result[i]][1])  #El [1] es per a agafar la llista potser estiga mal
-                print(s)
-                print(make_snippet(result[i]))
+                docID, newPos, longitud = self.news[result[i]]
+                with open(self.docs[docID], "r") as file:
+                    jlist = json.load(file)
+                    s = "#"+str(i+1) + "\t (" + str(self.weight.get(result[i],0)) + ")" + " (" + str(result[i]) + ")"
+                    if self.multifield:
+                        if self.index.get("date", None) != None:
+                            s += " (" + jlist[newPos]['date'] + ")"
+                        if self.index.get("title", None) != None:
+                            s += jlist[newPos]['title']
+                        if self.index.get("keywords", None) != None:
+                            s += str(jlist[newPos]['keywords'])  #El [1] es per a agafar la llista potser estiga mal
+                    print(s)
+                    print(make_snippet(result[i],jlist[newPos-1]['article']))
+                    
         else:
             for i in range(0, len(result)):
-                print("#"+str(i+1))
-                print("Score: " + str( self.weight[result[i]] if self.use_ranking else 0)) 
-                print(result[i]) # docID
-                if self.multifield:
-                    if self.index.get("date", None) != None:
-                        print(self.index['date'][result[i]])
-                    if self.index.get("title", None) != None:
-                        print(self.index['title'][result[i]])
-                    if self.index.get("keywords", None) != None:
-                        print(str(self.index['keywords'][result[i]][1])) #El [1] es per a agafar la llista potser estiga mal
+                docID, newPos, longitud = self.news[result[i]]
+                with open(self.docs[docID], "r") as file:
+                    print("#"+str(i+1))
+                    print("Score: " + str( self.weight[result[i]] if self.use_ranking else 0)) 
+                    print(result[i]) # docID
+                    if self.multifield:
+                        if self.index.get("date", None) != None:
+                            print(jlist[newPos][result[i]])
+                        if self.index.get("title", None) != None:
+                            print(jlist[newPos]['title'][result[i]])
+                        if self.index.get("keywords", None) != None:
+                            print(str(jlist[newPos]['keywords'][result[i]][1])) #El [1] es per a agafar la llista potser estiga mal
 
-                if i < len(result) -1:
-                    print("----------------------------------------")
+                    if i < len(result) -1:
+                        print("----------------------------------------")
         print("========================================")
-
-        def make_snippet(newsID):
-            qList = query.split(" ")
-            commandList = ["AND", "OR", "NOT"]
-            qList = [x for x in qList if wq not in commandList]
-            positionList = []
-            for wq in qList:
-                if wq not in self.index:
-                    continue
-                wqPosList = self.index[wq][2]
-                for p in wqPosList:
-                    positionList.append((wq,p))
-            positionList = sorted(positionList, key= lambda x: x[1]) #Major pos al principi. Menor al final
-
-            docID, newPos = self.news[newsID]
-            with open(self.docs[docID], "r") as file:
-                jlist = json.load(file)
-                noticia = jlist[newPos]["article"]
-                noticia = noticia.split(" ")
-                noticia[positionList[-1],positionList[0]]
-            #for wq in qList:
-            snippetRes = ""
-            for w_noticia in noticia:
-                snippetRes += w_noticia + " "
-
-            return snippetRes
-
 
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
