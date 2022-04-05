@@ -266,10 +266,50 @@ class SAR_Project:
         Crea el indice permuterm (self.ptindex) para los terminos de todos los indices.
 
         """
-        pass
-        ####################################################
-        ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
-        ####################################################
+        
+        # self.permuterm layout:
+        #
+        # 'bc$a' -> 'abc' ?
+        # o mejor
+        # 'bc$a' -> [postinglist de abc] ?
+
+        # Yo prefiero primera opcion porque es mas sencilla,
+        # no hay que preocuparse de que la postinglist resultante este en orden
+        # y de todos modos hay que comprobar si el termino retornado se ajusta a la query
+
+        for k in self.index['article'].keys():
+        
+            # rotate word 
+            wordstack = list(k) + ['$']
+
+            exitGuard =  True
+            while exitGuard:
+
+                if wordstack[0] == '$':
+                    exitGuard = False # exit next iteration
+
+                term = ''.join(wordstack)   
+                self.ptindex['article'][term] = self.ptindex['article'].get(term, []) + [k]   
+                wordstack.append(wordstack.pop(0))
+
+        
+        if self.multifield:
+
+            for field in ['keywords', 'summary', 'title']:
+
+                for k in self.index[field].keys():
+                    # rotate word 
+                    wordstack = list(k) + ['$']
+
+                    exitGuard =  True
+                    while exitGuard:
+                    
+                        if wordstack[0] == '$':
+                            exitGuard = False # exit next iteration
+
+                        term = ''.join(wordstack)   
+                        self.ptindex[field][term] = self.ptindex[field].get(term, []) + [k]   
+                        wordstack.append(wordstack.pop(0))
 
 
 
@@ -289,7 +329,7 @@ class SAR_Project:
 
         print("TOKENS:")
         if self.multifield:
-            for i,j in self.index:
+            for i,j in self.index.items():
                 print("nº de tokens en '" + str(i) + "':" + str(len(j)))
         else:
             print("nº de tokens en 'article':" + str(len(self.index['article'].keys())))
