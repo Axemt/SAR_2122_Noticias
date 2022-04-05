@@ -152,6 +152,9 @@ class SAR_Project:
                     fullname = os.path.join(dir, filename)
                     self.index_file(fullname)
 
+        # Tot l'index generat: fer permuterm
+        self.make_permuterm()
+
         #Per fer el càlcul dels pesats, el nombre de noticies en les quals apareix un terme es la longitud de la seua posting list i el nombre d'aparicions en una determinada
         #notícia seria la longitud del segon element de la tupla, perquè té la forma (noticiaID, [pos1, ..., posN])
         #Per fer multifield
@@ -294,10 +297,58 @@ class SAR_Project:
         Crea el indice permuterm (self.ptindex) para los terminos de todos los indices.
 
         """
+<<<<<<< Updated upstream
         pass
         ####################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
         ####################################################
+=======
+        
+        # self.permuterm layout:
+        #
+        # 'bc$a' -> 'abc' ?
+        # o mejor
+        # 'bc$a' -> [postinglist de abc] ?
+
+        # Yo prefiero primera opcion porque es mas sencilla,
+        # no hay que preocuparse de que la postinglist resultante este en orden
+        # y de todos modos hay que comprobar si el termino retornado se ajusta a la query
+
+        self.ptindex['article'] = {}
+        for k in self.index['article'].keys():
+        
+            # rotate word 
+            wordstack = list(k) + ['$']
+
+            exitGuard =  True
+            while exitGuard:
+
+                if wordstack[0] == '$':
+                    exitGuard = False # exit next iteration
+
+                term = ''.join(wordstack)   
+                self.ptindex['article'][term] = self.ptindex['article'].get(term, []) + [k]   
+                wordstack.append(wordstack.pop(0))
+
+        
+        if self.multifield:
+
+            for field in ['keywords', 'summary', 'title']:
+                self.ptindex[field] = {}
+                for k in self.index[field].keys():
+                    # rotate word 
+                    wordstack = list(k) + ['$']
+
+                    exitGuard =  True
+                    while exitGuard:
+                    
+                        if wordstack[0] == '$':
+                            exitGuard = False # exit next iteration
+
+                        term = ''.join(wordstack)   
+                        self.ptindex[field][term] = self.ptindex[field].get(term, []) + [k]   
+                        wordstack.append(wordstack.pop(0))
+>>>>>>> Stashed changes
 
 
 
@@ -324,7 +375,7 @@ class SAR_Project:
         print("----------------------------------------")
         if self.permuterm:
             print("PERMUTERMS:")
-            for i,j in self.ptindex:
+            for i,j in self.ptindex.items():
                 print("nº de permuterms en '" + str(i) + "':" + str(len(j)))
             print("----------------------------------------")
         if self.stemming:
