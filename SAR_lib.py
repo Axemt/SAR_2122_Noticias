@@ -203,6 +203,8 @@ class SAR_Project:
                 self.news[self.noticiaID] = (self.docID, pos) #guardem una tupla del document on se troba la notícia i la seua posició en ell
                 tokens = self.tokenize(noticia['article']) #tokenitzem la notícia
                 for index, token in enumerate(tokens):
+                    
+                    diccionari[token] = diccionari.get(token, 0) + 1
                     if token in diccionari_posicions:
                         diccionari_posicions[token].append(index) #si ja existia ho afegim al final
                         #Per a cerques posicionals:
