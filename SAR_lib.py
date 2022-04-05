@@ -200,10 +200,9 @@ class SAR_Project:
             for noticia in jlist: #és un diccionari
                 diccionari = {} #per a cadascuna de les notícies ens creem un diccionari auxiliar que conte les vegades que ha aparegut
                 diccionari_posicions = {} #i guardem també les posicions on apareix cada token en eixa notícia
-                self.news[self.noticiaID] = (self.docID, pos) #guardem una tupla del document on se troba la notícia i la seua posició en ell
                 tokens = self.tokenize(noticia['article']) #tokenitzem la notícia
+                self.news[self.noticiaID] = (self.docID, pos, len(tokens)) #guardem una tupla del document on se troba la notícia i la seua posició en ell
                 for index, token in enumerate(tokens):
-                    
                     diccionari[token] = diccionari.get(token, 0) + 1
                     if token in diccionari_posicions:
                         diccionari_posicions[token].append(index) #si ja existia ho afegim al final
