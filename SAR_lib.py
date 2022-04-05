@@ -400,7 +400,7 @@ class SAR_Project:
         if self.stemming:
             print("STEMS:")
             for i,j in self.sindex.items():
-                print("nº de permuterms en '" + str(i) + "':" + str(len(j)))
+                print("nº de stems en '" + str(i) + "':" + str(len(j)))
             print("----------------------------------------")
         if self.positional: # -O
             print("Les consultes posicionals estan permitides")
