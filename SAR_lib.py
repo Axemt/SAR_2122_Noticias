@@ -158,10 +158,12 @@ class SAR_Project:
                 if filename.endswith('.json'):
                     fullname = os.path.join(dir, filename)
                     self.index_file(fullname)
-
+                    
         # Tot l'index generat: fer permuterm
-        self.make_permuterm()
-
+        if self.permuterm:
+            self.make_permuterm()
+        if self.stemming:
+            self.make_stemming()
         #Per fer el càlcul dels pesats, el nombre de noticies en les quals apareix un terme es la longitud de la seua posting list i el nombre d'aparicions en una determinada
         #notícia seria la longitud del segon element de la tupla, perquè té la forma (noticiaID, [pos1, ..., posN])
         #Per fer multifield
@@ -218,7 +220,10 @@ class SAR_Project:
                     tokens['summary'] = self.tokenize(noticia['summary'])
                     tokens['keywords'] = self.tokenize(noticia['keywords'])
                     tokens['title'] = self.tokenize(noticia['title'])
-                    self.index['date'][noticia['date']] = self.noticiaID
+                    if noticia['date'] in self.index['date']:
+                        self.index['date'][noticia['date']].append(self.noticiaID)
+                    else:
+                        self.index['date'][noticia['date']] = [self.noticiaID]
                 for field in tokens.keys():
                     tokens_field = tokens[field] #ho tenim de manera que és un diccionari amb els tokens per cada camp
                     for index,token in enumerate(tokens_field):
@@ -421,15 +426,15 @@ class SAR_Project:
         i = 1
         if termes[0] == "NOT":
             if self.multifield and ":" in termes[1]:
-                [camp, terme] = termes[1].split(" ")
+                [camp, terme] = termes[1].split(":")
                 p1 = self.get_posting(terme, camp)
             else: 
                 p1 = self.get_posting(termes[1])
             p1 = self.reverse_posting(p1)
             i += 1
         else:
-            if self.multifield and ":" in termes[1]:
-                [camp, terme] = termes[0].split(" ")
+            if self.multifield and ":" in termes[0]:
+                [camp, terme] = termes[0].split(":")
                 p1 = self.get_posting(terme, camp)
             else: 
                 p1 = self.get_posting(termes[0])
@@ -448,7 +453,7 @@ class SAR_Project:
                     op = self.or_posting
                 nova_i = i + 2 #hem d'indicar a on s'avança, 2 o 3 més segons si tenim NOT o no
             if self.multifield and ":" in termes[nova_i - 1]:
-                [camp, terme] = termes[nova_i - 1].split(" ")
+                [camp, terme] = termes[nova_i - 1].split(":")
                 p2 = self.get_posting(terme, camp)
             else:
                 p2 = self.get_posting(termes[nova_i - 1]) #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
@@ -479,8 +484,12 @@ class SAR_Project:
         #for noticia, _ in self.index[term]:
         #   posting_list.append(noticia)
         #return posting_list
-        return [x[0] for x in self.index[field][term]] #si no existeix el term en l'índex inveritt tornem la llista buida
-
+        if term not in self.index[field]:
+            return []
+        if field != 'date':
+            return [x[0] for x in self.index[field][term]] #si no existeix el term en l'índex inveritt tornem la llista buida
+        else: 
+            return [x for x in self.index[field][term]] #si no existeix el term en l'índex invertit tornem la llista buida
     def get_positionals(self, terms, field='article'):
         """
         NECESARIO PARA LA AMPLIACION DE POSICIONALES
@@ -764,27 +773,27 @@ class SAR_Project:
         if self.show_snippet:
             for i in range(0, len(result)):
                 s = "#"+str(i+1) + "\t (" + str(self.weight[result[i]]) + ")" + " (" + str(result[i]) + ")"
-                if self.multifield:
+                """if self.multifield:
                     if self.index.get("date", None) != None:
                         s += " (" + self.index['date'][result[i]] + ")"
                     if self.index.get("title", None) != None:
                         s += self.index['title'][result[i]]
                     if self.index.get("keywords", None) != None:
                         s += str(self.index['keywords'][result[i]][1])  #El [1] es per a agafar la llista potser estiga mal
-                print(s)
+                print(s)"""
         else:
             for i in range(0, len(result)):
                 print("#"+str(i+1))
                 print("Score: " + str( self.weight[result[i]] if self.use_ranking else 0)) 
                 print(result[i]) # docID
-                if self.multifield:
+                """if self.multifield:
                     if self.index.get("date", None) != None:
                         print(self.index['date'][result[i]])
                     if self.index.get("title", None) != None:
                         print(self.index['title'][result[i]])
                     if self.index.get("keywords", None) != None:
                         print(str(self.index['keywords'][result[i]][1])) #El [1] es per a agafar la llista potser estiga mal
-
+                    """
                 if i < len(result) -1:
                     print("----------------------------------------")
         print("========================================")
