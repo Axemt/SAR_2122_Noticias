@@ -284,28 +284,43 @@ class SAR_Project:
         self.stemmer.stem(token) devuelve el stem del token
 
         """
-        ocurrStem = 0
+        self.sindex['article'] = {}
+        if self.multifield:
+            self.sindex['title'] = {}
+            self.sindex['keywords'] = {}
+            self.sindex['summary'] = {}  
+        
         for token in self.index['article']:
-            stem = self.stemmer.stem(self.index['article'][token])
-
+            stem = self.stemmer.stem(token)
+            ocurr = 0
+            ocurrStem = 0
             for (_, aparicions, _) in self.index['article'][token]:
                 ocurr += aparicions
             ocurrStem += ocurr
+            if stem not in self.sindex['article']:
+                self.sindex['article'][stem] = (ocurrStem, [token])
+            else:
+                self.sindex['article'][stem] = (self.sindex['article'][stem][0] + ocurrStem, self.sindex['article'][stem][1] + [token]) 
             
-            self.sindex['article'][stem] = (ocurrStem, self.sindex['article'][stem][1] + [token])
             
         if self.multifield:
             fields = ['keywords', 'title', 'summary']
-
+            
             for f in fields:
-                #for token in self.index['article']:
-                stem = self.stemmer.stem(self.index[f][token])
-
-                for (_, aparicions, _) in self.index[f][token]:
-                    ocurr += aparicions
-                ocurrStem += ocurr
                 
-                self.sindex[f][stem] = (ocurrStem, self.sindex[f][stem][1] + [token])
+                for token in self.index[f]:
+                    stem = self.stemmer.stem(self.index[f][token])
+                    ocurr = 0
+                    ocurrStem = 0
+                    for (_, aparicions, _) in self.index[f][token]:
+                        ocurr += aparicions
+                    ocurrStem += ocurr
+
+                    if stem not in self.sindex[f]:
+                        self.sindex[f][stem] = (ocurrStem, [token])
+                    else:
+                        self.sindex[f][stem] = (self.sindex[f][stem][0] + ocurrStem, self.sindex[f][stem][1] + [token])
+                
         # keyword title summary
         ####################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
@@ -399,7 +414,7 @@ class SAR_Project:
         if self.stemming:
             print("STEMS:")
             for i,j in self.sindex.items():
-                print("nº de permuterms en '" + str(i) + "':" + str(len(j)))
+                print("nº de stems en '" + str(i) + "':" + str(len(j)))
             print("----------------------------------------")
         if self.positional: # -O
             print("Les consultes posicionals estan permitides")
@@ -501,12 +516,24 @@ class SAR_Project:
         #for noticia, _ in self.index[term]:
         #   posting_list.append(noticia)
         #return posting_list
+
+
         if term not in self.index[field]:
             return []
-        if field != 'date':
-            return [x[0] for x in self.index[field][term]] #si no existeix el term en l'índex inveritt tornem la llista buida
-        else: 
-            return [x for x in self.index[field][term]] #si no existeix el term en l'índex invertit tornem la llista buida
+        #si no existeix el term en l'índex inveritt tornem la llista buida
+        if self.use_stemming:
+            return self.get_stemming(term, field) 
+        if self.permuterm and '*' in term:
+            return self.get_permuterm(term)
+        return [x[0] for x in self.index[field][term]]
+        
+
+        
+        #if field != 'date':
+            #return [x[0] for x in self.index[field][term]] #si no existeix el term en l'índex inveritt tornem la llista buida
+        #else: 
+            #return [x for x in self.index[field][term]] #si no existeix el term en l'índex invertit tornem la llista buida
+
     def get_positionals(self, terms, field='article'):
         """
         NECESARIO PARA LA AMPLIACION DE POSICIONALES
@@ -540,20 +567,23 @@ class SAR_Project:
         
         stem = self.stemmer.stem(term)
         
-        if self.sindex.get(field, None) != None:
+        if self.sindex[field].get(stem, None) != None:
             lstem = self.sindex[field][stem][1] # llista de paraules amb l'stem
-            p1 = self.index[field][lstem][0] # Cuidador revisar pq lista 1 elem
+            
+            # p1 es la llista composada per l'element 0 de la llista de paraules amb un mateix stem
+            p1 = [x[0] for x in self.index[field][lstem[0]]] 
             
             if len(lstem) == 1:
                 return p1
             else:
                 i = 1
-                while i < lstem:
-                    p1 = self.or_posting(p1, self.index[field][lstem][i])
+                while i < len(lstem):
+                    p1 = self.or_posting(p1, [x[0] for x in self.index[field][lstem[i]]])
                     i += 1
+                return p1    
         else: 
             return []
-        return p1
+        
         ####################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
         ####################################################
@@ -866,6 +896,7 @@ class SAR_Project:
         #Llista de les ids de les noticies
         result = self.solve_query(query)
         print("Number of results: " + str(len(result) if result != [] else 0))
+        print("----------------------------------------")
         if self.use_ranking:
             result = self.rank_result(result, query)
         
@@ -876,33 +907,27 @@ class SAR_Project:
                 docID, newPos, longitud = self.news[result[i]]
                 with open(self.docs[docID], "r") as file:
                     jlist = json.load(file)
-                    s = "#"+str(i+1) + "\t (" + str(self.weight.get(result[i],0)) + ")" + " (" + str(result[i]) + ")"
+                    s = "#"+str(i+1) + "\n Score: " + str(self.weight.get(result[i],0)) + "\ndocID: " + str(result[i]) + "\n"
                     if self.multifield:
-                        if self.index.get("date", None) != None:
-                            s += " (" + jlist[newPos-1]['date'] + ")"
-                        if self.index.get("title", None) != None:
-                            s += jlist[newPos-1]['title']
-                        if self.index.get("keywords", None) != None:
-                            s += str(jlist[newPos-1]['keywords'])  #El [1] es per a agafar la llista potser estiga mal
+                        s += "Date: " + jlist[newPos-1]['date'] + "\n"
+                        s += "Title: " + jlist[newPos-1]['title'] + "\n"
+                        s += "Keywords: " + str(jlist[newPos-1]['keywords'])
                     print(s)
-                    print(make_snippet(result[i],jlist[newPos-1]['article']))
+                    print("Snipped: " + make_snippet(result[i],jlist[newPos-1]['article']))
                     
         else:
             for i in range(0, len(result)):
                 docID, newPos, longitud = self.news[result[i]]
                 with open(self.docs[docID], "r") as file:
                     jlist = json.load(file)
-                    print("#"+str(i+1))
-                    print("Score: " + str( self.weight[result[i]] if self.use_ranking else 0)) 
-                    print(result[i]) # docID
+                    s ="#"+str(i+1)
+                    s+="\t(" + str( self.weight.get(result[i],0)) + ")"
+                    s+= "\t(" +str(result[i])+")\t" # docID
                     if self.multifield:
-                        if self.index.get("date", None) != None:
-                            print(jlist[newPos-1]['date'])
-                        if self.index.get("title", None) != None:
-                            print(jlist[newPos-1]['title'])
-                        if self.index.get("keywords", None) != None:
-                            print(str(jlist[newPos-1]['keywords'])) #El [1] es per a agafar la llista potser estiga mal
-
+                        s += "Date: " + jlist[newPos-1]['date'] + "\t"
+                        s += "Title: " + jlist[newPos-1]['title'] + "\t"
+                        s += "(" + str(jlist[newPos-1]['keywords']) + ")"
+                    print(s)
                     if i < len(result) -1:
                         print("----------------------------------------")
         print("========================================")
