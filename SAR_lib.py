@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 import json
 import string
 from unittest import result
@@ -153,6 +154,7 @@ class SAR_Project:
 
         #Per fer el càlcul dels pesats, el nombre de noticies en les quals apareix un terme es la longitud de la seua posting list i el nombre d'aparicions en una determinada
         #notícia seria la longitud del segon element de la tupla, perquè té la forma (noticiaID, [pos1, ..., posN])
+        #Per fer multifield
 
         ##########################################
         ## COMPLETAR PARA FUNCIONALIDADES EXTRA ##
@@ -221,6 +223,37 @@ class SAR_Project:
 
 
 
+        pos = 1 #pos marcarà en quina posició se troba cada notícia en el document del qual forma part
+        with open(filename) as fh:
+            jlist = json.load(fh)
+            for noticia in jlist: #és un diccionari
+                self.news[self.noticiaID] = (self.docID, pos) #guardem una tupla del document on se troba la notícia i la seua posició en ell
+                tokens = self.tokenize(noticia['article']) #tokenitzem la notícia
+                #Per a cerques posicionals:
+                #idParaula = 1
+                for token in tokens:
+                    #Per a implementar el multifield aço s'haurà de canviar de manera que en lloc de consultar self.index[token] se consulte self.index['article'][token] i de més
+                    #Per a calcular els pesats, primer calculem la freqüència: pensar si se pot posar en index
+                    #if token in self.frequencies: #si es la primera vegada que trobem el token
+                    #   documents, frequencia = self.frequencies[token]
+                    #   documents.add(docID)
+                    #   self.frequencies[token] = (documents, frequencia + 1)
+                    #else:
+                    #   self.frequencies[token] = ({docID}, 1) #utilitzarem sets en lloc de llistes perquè evita repetits
+                    if token in self.index: 
+                        self.index[token].append(self.noticiaID) #si ja existia ho afegim al final
+                        #Per a cerques posicionals:
+                        #aux = self.index[token]
+                        #Ara faltaria saber com mirar si la notícia ja està dins o no, perquè lo que tenim és una llista de tuples, hauríem de recórrer-la tota? 
+                        #S'hauria de discutir, preguntar-li en classe
+                    else: #si no existeix, creem una llista amb la notícia on l'hem trobat com a primer element
+                        self.index[token] = [self.noticiaID] 
+                        #Per a cerques posicionals: Tal volta és millor idea utilitzar un diccionari per a cada terme i té com a clau noticiaID i com a valor la llista de posicions
+                        # self.index[token] = [(self.noticiaID, [idParaula])]       
+                pos += 1
+                self.noticiaID += 1 #cada vegada ho incrementem perquè no hi haja dues notícies amb el mateix ID
+        self.docID += 1 #ho incrementem ja al final
+        pos = 1 #cada vegada pose la posició a 1 perquè siga la posició relativa de la notícia dins el document    
     def tokenize(self, text):
         """
         NECESARIO PARA TODAS LAS VERSIONES
@@ -339,6 +372,33 @@ class SAR_Project:
         ########################################
         ## COMPLETAR PARA TODAS LAS VERSIONES ##
         ########################################
+
+        termes = query.split(" ") #separem per espais per tindre tots els termes de la consulta (inclosos AND, NOT i OR)
+        p1 = []
+        i = 1
+        if termes[0] == "NOT":
+            p1 = self.index[termes[1]]
+            p1 = self.reverse_posting(p1)
+            i += 1
+        else:
+            p1 = self.index[termes[0]]
+        while i < len(termes):
+            op = ""
+            if termes[i + 1] == "NOT":
+                if termes[i] == "AND":
+                    op = self.and_not_posting
+                else:
+                    op = self.or_not_posting
+                nova_i = i + 3
+            else:
+                if termes[i] == "AND":
+                    op = self.and_posting
+                else:
+                    op = self.or_posting
+                nova_i = i + 2 #hem d'indicar a on s'avança, 2 o 3 més segons si tenim NOT o no
+            p2 = self.index[termes[nova_i - 1]] #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
+            p1 = op(p1,p2) #en p1 anem guardant les llistes amb els resultats parcials de la nostra consulta
+            i = nova_i
 
  
 
