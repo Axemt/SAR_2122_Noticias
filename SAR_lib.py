@@ -460,7 +460,7 @@ class SAR_Project:
 
         if query is None or len(query) == 0:
             return []
-        termes = query.lower().split(" ") #separem per espais per tindre tots els termes de la consulta (inclosos AND, NOT i OR)
+        termes = query.split(" ") #separem per espais per tindre tots els termes de la consulta (inclosos AND, NOT i OR)
         p1 = []
         i = 1
         if termes[0] == "NOT":
@@ -526,19 +526,19 @@ class SAR_Project:
         #return posting_list
 
         #si no existeix el term en l'índex inveritt tornem la llista buida
+        term = term.lower()
+        if field == 'date':
+            return [x for x in self.index[field][term]]
+
         if self.permuterm and '*' in term or '?' in term:
             return self.get_permuterm(term, field=field)
         if self.use_stemming:
             return self.get_stemming(term, field=field) 
         if term not in self.index[field]:
             return []
+        else:
+            return [x[0] for x in self.index[field][term]] # Posting list normal
 
-        if field != 'date':
-            #return [x[0] for x in self.index[field][term]] #si no existeix el term en l'índex inveritt tornem la llista buida
-            pass
-        else: 
-            #return [x for x in self.index[field][term]] #si no existeix el term en l'índex invertit tornem la llista buida
-            pass
     def get_positionals(self, terms, field='article'):
         """
         NECESARIO PARA LA AMPLIACION DE POSICIONALES
