@@ -535,9 +535,10 @@ class SAR_Project:
 
         if field != 'date':
             #return [x[0] for x in self.index[field][term]] #si no existeix el term en l'índex inveritt tornem la llista buida
+            pass
         else: 
             #return [x for x in self.index[field][term]] #si no existeix el term en l'índex invertit tornem la llista buida
-
+            pass
     def get_positionals(self, terms, field='article'):
         """
         NECESARIO PARA LA AMPLIACION DE POSICIONALES
@@ -854,7 +855,7 @@ class SAR_Project:
         return: el numero de noticias recuperadas, para la opcion -T
         
         """
-        
+        #region snippet
         def make_snippet(newsID, article):
             qList = query.split(" ")
             commandList = ["AND", "OR", "NOT"]
@@ -901,7 +902,7 @@ class SAR_Project:
                 snippetRes += w_noticia + " "
 
             return snippetRes
-
+        #endregion
 
         #AVIS!!!!! L'accés al diccionari pot estar MAL i faltar algun [1]
         print("========================================")
@@ -967,11 +968,20 @@ class SAR_Project:
         queryList = query.split(" ")
         command_list = ["NOT", "AND", "OR"]
         queryList = [x for x in queryList if x not in command_list]
+        queryDict = {'argument':[]}
+        for w in queryList:
+            subst = w.split(':')
+            if len(subst) == 2:
+                queryDict[subst[0]] = queryDict.get(subst[0], []).append(subst[1])
+            elif len(subst) == 1:
+                queryDict['argument'].append(subst[0])
         doc_list = [] #[(docID, weight),(...), ...]
         for doc in result:
             docWeight = 0
-            for qword in queryList:
-                docWeight += self.weight['article'][qword][doc]
+            for field in queryDict:
+                queryList = queryDict[field]
+                for qword in queryList:
+                    docWeight += self.weight[field][qword][doc]
             doc_list.append((doc,docWeight))
         
         self.doc_weight_query = dict(doc_list)
