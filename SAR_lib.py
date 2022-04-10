@@ -593,6 +593,30 @@ class SAR_Project:
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
         ####################################################
 
+    def get_permuterm_words(self, term, field='article'):
+        # find target permutation for search
+        # 'term' contains *, get * to leftmost
+        wordstack = list(term) + ['$']
+
+        # permuterm queries with '*' and '?
+        while wordstack[0] not in  ['*', '?']:
+            wordstack.append(wordstack.pop(0))
+        
+        # '*/?' in wordstack[0]
+        wordstack.append(wordstack.pop(0))
+        # term has form ab..$cd..*
+
+        is_qmark = '?' in term
+        term = ''.join(wordstack).replace('*','').replace('?','')
+
+        res = []
+        for k in self.ptindex[field]:
+            if k.startswith(term):
+                if is_qmark and len(k) != len(term) + 1:
+                    continue
+                # get list of terms fullfilling the query
+                res += self.ptindex[field][k]
+        return res
 
     def get_permuterm(self, term, field='article'):
         """
@@ -860,12 +884,26 @@ class SAR_Project:
             qList = query.split(" ")
             commandList = ["AND", "OR", "NOT"]
             qList = [x for x in qList if x not in commandList]
+            queryDict = {'argument':[]}
+            noticia = self.tokenize(article)
+            for w in qList:
+                subst = w.split(':')
+                if len(subst) == 2:
+                    queryDict[subst[0]] = queryDict.get(subst[0], [])
+                    queryDict[subst[0]].append(subst[1])
+                elif len(subst) == 1:
+                    queryDict['argument'].append(subst[0])
+
+            if len(queryDict['argument']) == 0:
+                snippetRes = ''
+                for w_noticia in noticia[0:25]:
+                    snippetRes += w_noticia + " "
+                return snippetRes + '...'
             positionList = []
             docID, newPos, longitud = self.news[newsID]
             for wq in qList:
                 if wq in self.index['article'].keys():
                     wqPosList = self.index['article'][wq]
-                    wqPosListTest = [x for x in wqPosList if x[0] == newsID][0]
                     wqPosList = [x[2] for x in wqPosList if x[0] == newsID][0]
                     
                     for p in wqPosList:
@@ -885,7 +923,6 @@ class SAR_Project:
                 snippetList[cont].append(positionList[pi][1])
                 lastpos = positionList[pi][1]
 
-            noticia = self.tokenize(article)
             noticiaWordSnippetList = []
             for l in snippetList:
                 rest = 1
@@ -928,7 +965,7 @@ class SAR_Project:
                         s += "Title: " + jlist[newPos]['title'] + "\n"
                         s += "Keywords: " + str(jlist[newPos]['keywords'])
                     print(s)
-                    print("Snipped: " + make_snippet(result[i],jlist[newPos]['article']))
+                    print("Snippet: " + make_snippet(result[i],jlist[newPos]['article']))
                     
         else:
             for i in range(0, len(result)):
@@ -972,15 +1009,26 @@ class SAR_Project:
         for w in queryList:
             subst = w.split(':')
             if len(subst) == 2:
-                queryDict[subst[0]] = queryDict.get(subst[0], []).append(subst[1])
+                field = subst[0]
+                word = subst[1]
+                queryDict[field] = queryDict.get(field, [])
+
             elif len(subst) == 1:
-                queryDict['argument'].append(subst[0])
+                field = 'argument'
+                word = subst[0]
+
+            if '*' in word:
+                queryDict[field] += self.get_permuterm_words(word,field)
+                print(queryDict)
+            else:
+                queryDict[field].append(word)
         doc_list = [] #[(docID, weight),(...), ...]
         for doc in result:
             docWeight = 0
             for field in queryDict:
                 queryList = queryDict[field]
                 for qword in queryList:
+                    print(field,qword,doc)
                     docWeight += self.weight[field][qword][doc]
             doc_list.append((doc,docWeight))
         
