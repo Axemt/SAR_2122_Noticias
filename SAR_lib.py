@@ -241,7 +241,7 @@ class SAR_Project:
                             diccionari_posicions[field][token].append(index) #si ja existia ho afegim al final
                         else: #si no existeix, creem una llista amb la notícia on l'hem trobat com a primer element
                             diccionari_posicions[field][token] = [index]
-                for field in diccionari.keys():
+                for field in diccionari:
                     for token, aparicions in diccionari[field].items():
                         if token not in self.weight[field]:
                             self.weight[field][token] = {}
@@ -884,17 +884,19 @@ class SAR_Project:
             qList = query.split(" ")
             commandList = ["AND", "OR", "NOT"]
             qList = [x for x in qList if x not in commandList]
-            queryDict = {'argument':[]}
             noticia = self.tokenize(article)
+            qListAux=[]
             for w in qList:
                 subst = w.split(':')
-                if len(subst) == 2:
-                    queryDict[subst[0]] = queryDict.get(subst[0], [])
-                    queryDict[subst[0]].append(subst[1])
-                elif len(subst) == 1:
-                    queryDict['argument'].append(subst[0])
-
-            if len(queryDict['argument']) == 0:
+                
+                if len(subst) == 1:
+                    
+                    if '*' in w:
+                        qListAux += self.get_permuterm_words(w.lower())
+                    else:
+                        qListAux.append(w)
+            qList = qListAux
+            if len(qList) == 0:
                 snippetRes = ''
                 for w_noticia in noticia[0:25]:
                     snippetRes += w_noticia + " "
@@ -904,7 +906,9 @@ class SAR_Project:
             for wq in qList:
                 if wq in self.index['article'].keys():
                     wqPosList = self.index['article'][wq]
-                    wqPosList = [x[2] for x in wqPosList if x[0] == newsID][0]
+                    wqPosList = [x[2] for x in wqPosList if x[0] == newsID]
+                    if(len(wqPosList) > 0):
+                        wqPosList = wqPosList[0]
                     
                     for p in wqPosList:
                         positionList.append((wq,p))
@@ -1005,21 +1009,25 @@ class SAR_Project:
         queryList = query.split(" ")
         command_list = ["NOT", "AND", "OR"]
         queryList = [x for x in queryList if x not in command_list]
-        queryDict = {'argument':[]}
+        queryDict = {'article':[]}
         for w in queryList:
             subst = w.split(':')
             if len(subst) == 2:
-                field = subst[0]
-                word = subst[1]
-                queryDict[field] = queryDict.get(field, [])
-
+                field = subst[0].lower()
+                word = subst[1].lower()
+                if field != 'date':
+                    queryDict[field] = queryDict.get(field, [])
+                else:
+                    continue
             elif len(subst) == 1:
-                field = 'argument'
-                word = subst[0]
-
+                field = 'article'
+                word = subst[0].lower()
+                print(word)
+            if field not in self.index:
+                print(str(field) + ' field do not exists in our database.')
+                return []
             if '*' in word:
                 queryDict[field] += self.get_permuterm_words(word,field)
-                print(queryDict)
             else:
                 queryDict[field].append(word)
         doc_list = [] #[(docID, weight),(...), ...]
@@ -1028,8 +1036,8 @@ class SAR_Project:
             for field in queryDict:
                 queryList = queryDict[field]
                 for qword in queryList:
-                    print(field,qword,doc)
-                    docWeight += self.weight[field][qword][doc]
+                    #print(self.weight[field])
+                    docWeight += self.weight[field][qword].get(doc,0)
             doc_list.append((doc,docWeight))
         
         self.doc_weight_query = dict(doc_list)
