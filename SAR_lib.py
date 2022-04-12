@@ -878,8 +878,6 @@ class SAR_Project:
 
     def solve_and_show(self, query): #Per als que tenen -Q
 
-        print(self.weight['title']['isla'][17])
-
         """
         NECESARIO PARA TODAS LAS VERSIONES
 
