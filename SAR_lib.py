@@ -167,7 +167,16 @@ class SAR_Project:
                 if filename.endswith('.json'):
                     fullname = os.path.join(dir, filename)
                     self.index_file(fullname)
-                    
+        for field in self.weight.keys():
+            for weight_w in self.weight[field].keys():
+                idf=math.log10(len(self.news)/(len(self.index[field][weight_w])))
+                #if weight_w == 'isla' and field == 'title':
+                #    print(idf)
+                for weight_doc in self.weight[field][weight_w]:
+                    normalized_tf = self.weight[field][weight_w][weight_doc]
+                    self.weight[field][weight_w][weight_doc] = normalized_tf*idf
+                    #if weight_w == 'isla' and field == 'title':
+                    #    print(self.weight[field][weight_w][weight_doc])       
         # Tot l'index generat: fer permuterm
         if self.permuterm:
             self.make_permuterm()
@@ -248,8 +257,10 @@ class SAR_Project:
                         #el noticiaID no existirà perquè estem considerant-la ara
                         val = aparicions
                         if val != 0:
+                            #calculem el nombre d'aparicions
                             val = (math.log10(val) + 1)/ len(tokens[field])
-                        self.weight[field][token][self.noticiaID] = val #calculem el nombre d'aparicions / longitud del document
+
+                        self.weight[field][token][self.noticiaID] = val
                         posicions = diccionari_posicions[field][token]
                         if token in self.index[field]:
                             self.index[field][token].append((self.noticiaID, aparicions, posicions))
@@ -258,12 +269,6 @@ class SAR_Project:
                 
                 pos += 1
                 self.noticiaID += 1 #cada vegada ho incrementem perquè no hi haja dues notícies amb el mateix ID
-            for field in self.weight:
-                for weight_w in self.weight[field]:
-                    for weight_doc in self.weight[field][weight_w]:
-                        normalized_tf = self.weight[field][weight_w][weight_doc]
-                        normalized_tfxidf=normalized_tf*math.log10(len(self.news)/len(self.index[field][weight_w]))
-                        self.weight[field][weight_w][weight_doc] = normalized_tfxidf
                         
         self.docID += 1 #ho incrementem ja al final 
     
@@ -441,7 +446,17 @@ class SAR_Project:
     ###                             ###
     ###################################
 
+    def parentesi(qList):
+        cont = 1
+        i = 1
+        while cont != 0:
+            if qList[i] == '(':
+                cont+= 1
+            elif qList[i] == ')':
+                cont+= -1
 
+            i+=1
+        return i
     def solve_query(self, query, prev={}):
         """
         NECESARIO PARA TODAS LAS VERSIONES
@@ -865,6 +880,9 @@ class SAR_Project:
 
 
     def solve_and_show(self, query): #Per als que tenen -Q
+
+        print(self.weight['title']['isla'][17])
+
         """
         NECESARIO PARA TODAS LAS VERSIONES
 
