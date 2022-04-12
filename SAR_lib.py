@@ -349,13 +349,8 @@ class SAR_Project:
         
         # self.permuterm layout:
         #
-        # 'bc$a' -> 'abc' ?
-        # o mejor
-        # 'bc$a' -> [postinglist de abc] ?
+        # 'bc$a' -> 'abc'
 
-        # Yo prefiero primera opcion porque es mas sencilla,
-        # no hay que preocuparse de que la postinglist resultante este en orden
-        # y de todos modos hay que comprobar si el termino retornado se ajusta a la query
         self.ptindex['article'] = {}
         for k in self.index['article'].keys():
         
@@ -375,7 +370,7 @@ class SAR_Project:
         
         if self.multifield:
 
-            for field in ['keywords', 'summary', 'title']:
+            for field in ['keywords', 'summary', 'title', 'date']:
                 self.ptindex[field] = {}
 
                 for k in self.index[field].keys():
@@ -527,11 +522,10 @@ class SAR_Project:
 
         #si no existeix el term en l'índex inveritt tornem la llista buida
         term = term.lower()
-        if field == 'date':
-            return [x for x in self.index[field][term]]
-
         if self.permuterm and '*' in term or '?' in term:
             return self.get_permuterm(term, field=field)
+        if field == 'date':
+            return [x for x in self.index[field][term]]
         if self.use_stemming:
             return self.get_stemming(term, field=field) 
         if term not in self.index[field]:
@@ -667,7 +661,10 @@ class SAR_Project:
                 for t in fullfils_q:
                     # union of term postings
                     # filter self.index[field][t] to only noticiaIDs
-                    left_acum = self.or_posting(left_acum, [ x[0] for x in self.index[field][t] ])
+                    if field != 'date':
+                        left_acum = self.or_posting(left_acum, [ x[0] for x in self.index[field][t] ])
+                    else:
+                        left_acum = self.or_posting(left_acum, self.index[field][t])
 
             if left_acum != []: # a term was found with prefix matching
                 res = self.or_posting(res, left_acum)
