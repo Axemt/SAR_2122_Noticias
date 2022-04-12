@@ -123,3 +123,6 @@ boletinProyecto-1.pdf
 # index
 idx
 index2015
+
+# Batch queries
+*.txt

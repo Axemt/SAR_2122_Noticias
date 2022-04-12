@@ -440,6 +440,24 @@ class SAR_Project:
     ###   PARTE 2.1: RECUPERACION   ###
     ###                             ###
     ###################################
+    
+    def scan_nestingdepth(self, rest: str) -> str:
+        """
+        Returns the index of a closing parentesis given a list that is assumed to 
+        have a parentesis at position 0 but does not include it
+        """
+        plusscan = []
+        # rest is a string that began with '(' but does not contain it anymore, counter begins at nesting depth 1
+        # NOTE: if passing a string, ensure the first '(' is stripped.
+        nest_depth, ct = 1, 0
+
+        while nest_depth != 0:
+            if rest[ct] == '(':
+                nest_depth += 1
+            elif rest[ct] == ')':
+                nest_depth -= 1
+            ct += 1
+        return ct-1
 
     def parentesi(qList):
         cont = 1
@@ -467,16 +485,23 @@ class SAR_Project:
         return: posting list con el resultado de la query
 
         """
-
+        termes = query
+        if type(query) == str:
+            query = query.replace(")", " ) ").replace("(", " ( ").replace("  ", " ").strip()
+            termes = query.split(" ") #separem per espais per tindre tots els termes de la consulta (inclosos AND, NOT i OR)      
         if query is None or len(query) == 0:
             return []
-        termes = query.split(" ") #separem per espais per tindre tots els termes de la consulta (inclosos AND, NOT i OR)
         p1 = []
         i = 1
         if termes[0] == "NOT":
             if self.multifield and ":" in termes[1]:
                 [camp, terme] = termes[1].split(":")
                 p1 = self.get_posting(terme, camp)
+            elif termes[1] == '(':
+                # get rest of tokens without first (
+                paren_close = self.scan_nestingdepth(termes[2:])
+                p1 = self.solve_query(termes[2:2+paren_close])
+                i += paren_close+1
             else: 
                 p1 = self.get_posting(termes[1])
             p1 = self.reverse_posting(p1)
@@ -485,15 +510,23 @@ class SAR_Project:
             if self.multifield and ":" in termes[0]:
                 [camp, terme] = termes[0].split(":")
                 p1 = self.get_posting(terme, field=camp)
+            elif termes[0] == '(':
+                # get rest of tokens without first (
+                paren_close = self.scan_nestingdepth(termes[1:])
+                p1 = self.solve_query(termes[1:1+paren_close])
+                i += paren_close+1
             else: 
                 p1 = self.get_posting(termes[0])
+
         while i < len(termes):
             op = ""
-            if termes[i + 1] == "NOT":
+            possible_index_parentesi = i + 1 
+            if i + 1 < len(termes) and termes[i + 1] == "NOT":
                 if termes[i] == "AND":
                     op = self.and_not_posting
                 else:
                     op = self.or_not_posting
+                possible_index_parentesi += 1 #si n'hi ha parèntesi es en i + 2
                 nova_i = i + 3
             else:
                 if termes[i] == "AND":
@@ -501,15 +534,19 @@ class SAR_Project:
                 else:
                     op = self.or_posting
                 nova_i = i + 2 #hem d'indicar a on s'avança, 2 o 3 més segons si tenim NOT o no
-            if self.multifield and ":" in termes[nova_i - 1]:
+            if possible_index_parentesi < len(termes) and termes[possible_index_parentesi] == "(":
+                paren_close = self.scan_nestingdepth(termes[possible_index_parentesi+1:])
+                p2 = self.solve_query(termes[possible_index_parentesi+1:possible_index_parentesi+1+paren_close])
+                nova_i = possible_index_parentesi + paren_close
+            elif self.multifield and ":" in termes[nova_i - 1]:
                 [camp, terme] = termes[nova_i - 1].split(":")
                 p2 = self.get_posting(terme, field=camp)
             else:
                 p2 = self.get_posting(termes[nova_i - 1]) #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
-            p1 = op(p1,p2) #en p1 anem guardant les llistes amb els resultats parcials de la nostra consulta
+            p1 = op(p1,p2) #en p1 anem guardantnova_i les llistes amb els resultats parcials de la nostra consulta
             i = nova_i
-            
         return p1
+
 
     def get_posting(self, term, field='article'):
         """
@@ -709,7 +746,7 @@ class SAR_Project:
         len_p1 = len(self.news)
         len_p2 = len(p)
         res = []
-        p1 = 0 #p1 sempre es igual al nombre al que senyala. Es un comptador
+        p1 = 1 #p1 sempre es igual al nombre al que senyala. Es un comptador
         p2 = 0
         while p1 < len_p1 and p2 < len_p2:
             if p[p2] > p1:
@@ -718,6 +755,7 @@ class SAR_Project:
             else:
                 p1 +=1
                 p2 +=1
+
         while p1 < len_p1:
             res.append(p1)
             p1 +=1
@@ -967,7 +1005,7 @@ class SAR_Project:
         print("----------------------------------------")
         self.doc_weight_query = dict()
         if self.use_ranking:
-            result = self.rank_result(result, query)
+            result = self.rank_result(result, query.replace("(","").replace(")",""))
         
         if not self.show_all and len(result) >= 10:
             result = result[0:10]
@@ -1035,7 +1073,6 @@ class SAR_Project:
             elif len(subst) == 1:
                 field = 'article'
                 word = subst[0].lower()
-                print(word)
             if field not in self.index:
                 print(str(field) + ' field do not exists in our database.')
                 return []
