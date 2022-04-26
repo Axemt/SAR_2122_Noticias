@@ -933,7 +933,7 @@ class SAR_Project:
         #region snippet
         def make_snippet(newsID, article):
             qList = query.split(" ")
-            commandList = ["AND", "OR", "NOT"]
+            commandList = ["AND", "OR", "NOT", ")", "("]
             qList = [x for x in qList if x not in commandList]
             noticia = self.tokenize(article)
             qListAux=[]
@@ -1003,6 +1003,8 @@ class SAR_Project:
         result = self.solve_query(query)
         print("Number of results: " + str(len(result) if result != [] else 0))
         print("----------------------------------------")
+        query = query.replace("(", "( ")
+        query = query.replace(")", " )")
         self.doc_weight_query = dict()
         if self.use_ranking:
             result = self.rank_result(result, query.replace("(","").replace(")",""))
@@ -1058,7 +1060,7 @@ class SAR_Project:
 
         """
         queryList = query.split(" ")
-        command_list = ["NOT", "AND", "OR"]
+        command_list = ["NOT", "AND", "OR", ")", "("]
         queryList = [x for x in queryList if x not in command_list]
         queryDict = {'article':[]}
         for w in queryList:
@@ -1087,7 +1089,8 @@ class SAR_Project:
                 queryList = queryDict[field]
                 for qword in queryList:
                     #print(self.weight[field])
-                    docWeight += self.weight[field][qword].get(doc,0)
+                    if qword in self.weight[field].keys():
+                        docWeight += self.weight[field][qword].get(doc,0)
             doc_list.append((doc,docWeight))
         
         self.doc_weight_query = dict(doc_list)
