@@ -445,12 +445,12 @@ class SAR_Project:
         """
         Returns the index of a closing parentesis given a list that is assumed to 
         have a parentesis at position 0 but does not include it
+        param: "rest": és una llista amb els tokens des de la posició següent a on s'ha trobat ( fins el final 
+        return: torna l'índex on acaba el parèntesi ) que tancaria la query que li hem passat
         """
-        plusscan = []
-        # rest is a string that began with '(' but does not contain it anymore, counter begins at nesting depth 1
-        # NOTE: if passing a string, ensure the first '(' is stripped.
+        
         nest_depth, ct = 1, 0
-
+        #cada ( que trobem suma 1 i quan trobem ) resta un, així quan arribem a 0 és que s'ha tancat el qu s'havia obrt
         while nest_depth != 0:
             if rest[ct] == '(':
                 nest_depth += 1
@@ -486,6 +486,9 @@ class SAR_Project:
 
         """
         termes = query
+        #com per a l'ampliació de parèntesi anem a passar-li una llista com a query en lloc d'un text
+        #només en cas que siga text, hem de parsear-lo, puix que ara el mètode s'aprofita per a la crida a solve_query "tradicional"
+        #i la recursiva per als parèntesis
         if type(query) == str:
             query = query.replace(")", " ) ").replace("(", " ( ").replace("  ", " ").strip()
             termes = query.split(" ") #separem per espais per tindre tots els termes de la consulta (inclosos AND, NOT i OR)      
@@ -499,7 +502,7 @@ class SAR_Project:
                 p1 = self.get_posting(terme, camp)
             elif termes[1] == '(':
                 # get rest of tokens without first (
-                paren_close = self.scan_nestingdepth(termes[2:])
+                paren_close = self.scan_nestingdepth(termes[2:]) 
                 p1 = self.solve_query(termes[2:2+paren_close])
                 i += paren_close+1
             else: 
@@ -520,6 +523,8 @@ class SAR_Project:
 
         while i < len(termes):
             op = ""
+            #possible_index_parentesi represetarà l'índex on se trobarà el parèntesi si n'hi ha
+            #bé a la dreta d'una AND o OR o bé AND NOT o OR NOT, segons el cas serà i + 1 o i + 2
             possible_index_parentesi = i + 1 
             if i + 1 < len(termes) and termes[i + 1] == "NOT":
                 if termes[i] == "AND":
@@ -534,8 +539,11 @@ class SAR_Project:
                 else:
                     op = self.or_posting
                 nova_i = i + 2 #hem d'indicar a on s'avança, 2 o 3 més segons si tenim NOT o no
-            if possible_index_parentesi < len(termes) and termes[possible_index_parentesi] == "(":
+            if possible_index_parentesi < len(termes) and termes[possible_index_parentesi] == "(":           
                 paren_close = self.scan_nestingdepth(termes[possible_index_parentesi+1:])
+                #Fem la crida recursiva des de després del 1r parèntesi fins abans de l'últim parèntesi
+                #s'ha de tindre en compte que scan_nestingdepth torna l'índex relatiu, sobre un termes parcial, aleshores hem de sumar-li possbile_index_parentesi
+                #per acabar on toca i el mateix per quan calculem nova_i
                 p2 = self.solve_query(termes[possible_index_parentesi+1:possible_index_parentesi+1+paren_close])
                 nova_i = possible_index_parentesi + paren_close
             elif self.multifield and ":" in termes[nova_i - 1]:
@@ -544,6 +552,7 @@ class SAR_Project:
             else:
                 p2 = self.get_posting(termes[nova_i - 1]) #agafem la llista del terme que és un menys de l'element que hem de mirar en la següent iteració
             p1 = op(p1,p2) #en p1 anem guardantnova_i les llistes amb els resultats parcials de la nostra consulta
+            #nova_i representa el que haurem de mirar en la següent operació
             i = nova_i
         return p1
 
