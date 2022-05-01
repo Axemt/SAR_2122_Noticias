@@ -934,7 +934,7 @@ class SAR_Project:
         def make_snippet(newsID, article):
             qList = query.split(" ")
             commandList = ["AND", "OR", "NOT"]
-            qList = [x for x in qList if x not in commandList]
+            qList = [x.lower() for x in qList if x not in commandList]
             noticia = self.tokenize(article)
             qListAux=[]
             for w in qList:
@@ -947,25 +947,34 @@ class SAR_Project:
                     else:
                         qListAux.append(w)
             qList = qListAux
-            if len(qList) == 0:
+            #Si la lista de palabras para article está vacia, devolvemos las 25 primeras (busquedas multifield)
+            def defaultSnippet():
                 snippetRes = ''
                 for w_noticia in noticia[0:25]:
                     snippetRes += w_noticia + " "
                 return snippetRes + '...'
+            
+            if len(qList) == 0:
+                return defaultSnippet()
+                
             positionList = []
             docID, newPos, longitud = self.news[newsID]
+            wqPosList = []
             for wq in qList:
                 if wq in self.index['article'].keys():
-                    wqPosList = self.index['article'][wq]
-                    wqPosList = [x[2] for x in wqPosList if x[0] == newsID]
+                    AuxList = self.index['article'][wq]
+                    wqPosList = [x[2] for x in AuxList if x[0] == newsID]
                     if(len(wqPosList) > 0):
                         wqPosList = wqPosList[0]
-                    
+                    else:   #El token existe en el diccionario, pero no en la noticia que queremos.
+                        return defaultSnippet()
                     for p in wqPosList:
                         positionList.append((wq,p))
 
             positionList = sorted(positionList, key= lambda x: x[1], reverse=False) #Major pos al principi. Menor al final
             #Crear partes de stems...
+            if(len(positionList) == 0):
+                print("OOOFFFF ERRORRRRRR:",wqPosList,qList, newsID)
             snippetList = [[positionList[0][1]]]
             cont = 0
             lastpos = positionList[0][1]
