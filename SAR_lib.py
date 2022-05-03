@@ -585,12 +585,12 @@ class SAR_Project:
         term = term.lower()
         if self.permuterm and '*' in term or '?' in term:
             return self.get_permuterm(term, field=field)
-        if field == 'date':
-            return [x for x in self.index[field][term]]
-        if self.use_stemming:
+        if self.use_stemming and field != 'date':
             return self.get_stemming(term, field=field) 
         if term not in self.index[field]:
-            return []
+            return []   
+        if field == 'date':
+            return [x for x in self.index[field][term]]
         else:
             return [x[0] for x in self.index[field][term]] # Posting list normal
 
@@ -757,7 +757,9 @@ class SAR_Project:
         res = []
         p1 = 1 #p1 sempre es igual al nombre al que senyala. Es un comptador
         p2 = 0
-        while p1 < len_p1 and p2 < len_p2:
+
+        # En usos de pi, ha de ser *menor o igual*, puesto que si es menor estricto perdemos la ultima noticia
+        while p1 <= len_p1 and p2 < len_p2:
             if p[p2] > p1:
                 res.append(p1)
                 p1 +=1
@@ -765,7 +767,7 @@ class SAR_Project:
                 p1 +=1
                 p2 +=1
 
-        while p1 < len_p1:
+        while p1 <= len_p1:
             res.append(p1)
             p1 +=1
 
