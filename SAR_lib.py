@@ -185,10 +185,6 @@ class SAR_Project:
         #Per fer el càlcul dels pesats, el nombre de noticies en les quals apareix un terme es la longitud de la seua posting list i el nombre d'aparicions en una determinada
         #notícia seria la longitud del segon element de la tupla, perquè té la forma (noticiaID, [pos1, ..., posN])
         #Per fer multifield
-
-        ##########################################
-        ## COMPLETAR PARA FUNCIONALIDADES EXTRA ##
-        ##########################################
         
 
     def index_file(self, filename):
@@ -335,9 +331,6 @@ class SAR_Project:
                         self.sindex[f][stem] = (self.sindex[f][stem][0] + ocurrStem, self.sindex[f][stem][1] + [token])
                 
         # keyword title summary
-        ####################################################
-        ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
-        ####################################################
 
 
     
@@ -348,9 +341,6 @@ class SAR_Project:
         Crea el indice permuterm (self.ptindex) para los terminos de todos los indices.
 
         """
-        ####################################################
-        ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
-        ####################################################
         
         # self.permuterm layout:
         #
@@ -459,17 +449,6 @@ class SAR_Project:
             ct += 1
         return ct-1
 
-    def parentesi(qList):
-        cont = 1
-        i = 1
-        while cont != 0:
-            if qList[i] == '(':
-                cont+= 1
-            elif qList[i] == ')':
-                cont+= -1
-
-            i+=1
-        return i
     def solve_query(self, query, prev={}):
         """
         NECESARIO PARA TODAS LAS VERSIONES
@@ -876,27 +855,6 @@ class SAR_Project:
 
         """
         return self.or_posting(p1, self.reverse_posting(p2))
-
-
-    def minus_posting(self, p1, p2):
-        """
-        OPCIONAL PARA TODAS LAS VERSIONES
-
-        Calcula el except de dos posting list de forma EFICIENTE.
-        Esta funcion se propone por si os es util, no es necesario utilizarla.
-
-        param:  "p1", "p2": posting lists sobre las que calcular
-
-
-        return: posting list con los newid incluidos de p1 y no en p2
-
-        """
-
-        
-        pass
-        ########################################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES SI ES NECESARIO ##
-        ########################################################
 #endregion
 
 #region Mostrar resultados
@@ -1061,10 +1019,6 @@ class SAR_Project:
                         print("----------------------------------------")
         print("========================================")
 
-        ########################################
-        ## COMPLETAR PARA TODAS LAS VERSIONES ##
-        ########################################
-
 
     def rank_result(self, result, query):
         """
@@ -1116,9 +1070,4 @@ class SAR_Project:
         self.doc_weight_query = dict(doc_list)
         doc_list = [k for k, v in sorted(doc_list, key=lambda item: item[1], reverse=True)]
         return doc_list
-        
-        
-        ###################################################
-        ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE RANKING ##
-        ###################################################
 #endregion
