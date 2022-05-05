@@ -563,7 +563,19 @@ class SAR_Project:
         #si no existeix el term en l'índex inveritt tornem la llista buida
         term = term.lower()
         if self.permuterm and '*' in term or '?' in term:
-            return self.get_permuterm(term, field=field)
+            fulllfils_q = self.get_permuterm(term, field=field)
+            #Convert list of words into list of postings
+            #Separate loops to avoid checking the field condition for every iteration
+            left_acum = []
+            if field != 'date':
+                for t in fulllfils_q:
+                    left_acum = self.or_posting(left_acum, [ x[0] for x in self.index[field][t] ])
+            else:
+                for t in fulllfils_q:
+                    left_acum = self.or_posting(left_acum, self.index[field][t])
+
+            return left_acum
+
         if self.use_stemming and field != 'date':
             return self.get_stemming(term, field=field) 
         if term not in self.index[field]:
@@ -627,38 +639,13 @@ class SAR_Project:
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
         ####################################################
 
-    def get_permuterm_words(self, term, field='article'):
-        # find target permutation for search
-        # 'term' contains *, get * to leftmost
-        wordstack = list(term) + ['$']
-
-        # permuterm queries with '*' and '?
-        while wordstack[0] not in  ['*', '?']:
-            wordstack.append(wordstack.pop(0))
-        
-        # '*/?' in wordstack[0]
-        wordstack.append(wordstack.pop(0))
-        # term has form ab..$cd..*
-
-        is_qmark = '?' in term
-        term = ''.join(wordstack).replace('*','').replace('?','')
-
-        res = []
-        for k in self.ptindex[field]:
-            if k.startswith(term):
-                if is_qmark and len(k) != len(term) + 1:
-                    continue
-                # get list of terms fullfilling the query
-                res += self.ptindex[field][k]
-        return res
-
     def get_permuterm(self, term, field='article'):
         """
         NECESARIO PARA LA AMPLIACION DE PERMUTERM
 
-        Devuelve la posting list asociada a un termino utilizando el indice permuterm.
+        Devuelve la lista de palabras que cumplen una busqueda permuterm.
 
-        param:  "term": termino para recuperar la posting list, "term" incluye un comodin (* o ?).
+        param:  "term": termino para recuperar la lista de palabras, "term" incluye un comodin (* o ?).
                 "field": campo sobre el que se debe recuperar la posting list, solo necesario se se hace la ampliacion de multiples indices
 
         return: posting list
@@ -688,33 +675,15 @@ class SAR_Project:
         term = ''.join(wordstack).replace('*','').replace('?','')
 
         res = []
+        left_acum = []
         for k in self.ptindex[field].keys():
-            left_acum = []
             if k.startswith(term):
                 if is_qmark and len(k) != len(term) + 1:
                     continue
-                # get list of terms fullfilling the query
-                fullfils_q = self.ptindex[field][k]
-                # get postings of terms
 
-                # foldr(left_acum, self.or_posting, [self.index[field][term] for term in fullfills_q])
-                for t in fullfils_q:
-                    # union of term postings
-                    # filter self.index[field][t] to only noticiaIDs
-                    if field != 'date':
-                        left_acum = self.or_posting(left_acum, [ x[0] for x in self.index[field][t] ])
-                    else:
-                        left_acum = self.or_posting(left_acum, self.index[field][t])
+                left_acum = self.ptindex[field][k] + left_acum
 
-            if left_acum != []: # a term was found with prefix matching
-                res = self.or_posting(res, left_acum)
-
-        return res
-        ##################################################
-        ## COMPLETAR PARA FUNCIONALIDAD EXTRA PERMUTERM ##
-        ##################################################
-
-
+        return left_acum
 
 
     def reverse_posting(self, p):
@@ -912,7 +881,7 @@ class SAR_Project:
                 if len(subst) == 1:
                     
                     if '*' in w:
-                        qListAux += self.get_permuterm_words(w.lower())
+                        qListAux += self.get_permuterm(w.lower())
                     else:
                         qListAux.append(w)
             qList = qListAux
@@ -1053,7 +1022,7 @@ class SAR_Project:
                 print(str(field) + ' field do not exists in our database.')
                 return []
             if '*' in word:
-                queryDict[field] += self.get_permuterm_words(word,field)
+                queryDict[field] += self.get_permuterm(word,field)
             else:
                 queryDict[field].append(word)
         doc_list = [] #[(docID, weight),(...), ...]

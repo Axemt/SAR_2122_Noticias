@@ -126,3 +126,5 @@ index2015
 
 # Batch queries
 *.txt
+# News files
+*.json
