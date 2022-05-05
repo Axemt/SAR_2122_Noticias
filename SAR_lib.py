@@ -941,9 +941,8 @@ class SAR_Project:
         """
         #region snippet
         def make_snippet(newsID, article):
-            qList = query.split(" ")
-            commandList = ["AND", "OR", "NOT"]
-            qList = [x.lower() for x in qList if x not in commandList]
+            #Fase 1
+            qList = queryList
             noticia = self.tokenize(article)
             qListAux=[]
             for w in qList:
@@ -959,13 +958,14 @@ class SAR_Project:
             #Si la lista de palabras para article está vacia, devolvemos las 25 primeras (busquedas multifield)
             def defaultSnippet():
                 snippetRes = ''
-                for w_noticia in noticia[0:25]:
+                for w_noticia in noticia[5:31]:
                     snippetRes += w_noticia + " "
                 return snippetRes + '...'
             
             if len(qList) == 0:
                 return defaultSnippet()
-                
+            
+            #Fase 2
             positionList = []
             docID, newPos, longitud = self.news[newsID]
             wqPosList = []
@@ -982,8 +982,8 @@ class SAR_Project:
 
             positionList = sorted(positionList, key= lambda x: x[1], reverse=False) #Major pos al principi. Menor al final
             #Crear partes de stems...
-            if(len(positionList) == 0):
-                print("OOOFFFF ERRORRRRRR:",wqPosList,qList, newsID)
+
+            #Fase 3
             snippetList = [[positionList[0][1]]]
             cont = 0
             lastpos = positionList[0][1]
@@ -999,12 +999,16 @@ class SAR_Project:
             noticiaWordSnippetList = []
             for l in snippetList:
                 rest = 1
+                addition = 15
+                reached_final = False
                 if l[0] == 0:
                     rest = 0
-                if len(l) == 1 and self.news[newsID][2] - l[0] > 10:
-                    noticiaWordSnippetList += noticia[l[0] - rest:l[0] + 15] + ['...']
-                elif len(l) > 1:
-                    noticiaWordSnippetList += noticia[l[0] - rest:l[-1]] + ['...']
+                if self.news[newsID][2] - l[0] <= addition:
+                    addition = self.news[newsID][2] - l[0]
+                    reached_final = True
+                noticiaWordSnippetList += noticia[l[0] - rest:l[-1] + addition]
+                if not reached_final:
+                    noticiaWordSnippetList += ['...']
 
             #for wq in qList:
             snippetRes = ""
@@ -1021,11 +1025,14 @@ class SAR_Project:
         result = self.solve_query(query)
         print("Number of results: " + str(len(result) if result != [] else 0))
         print("----------------------------------------")
-        query = query.replace("(", "( ")
-        query = query.replace(")", " )")
+        queryAux = query.replace("(", "")
+        queryAux = queryAux.replace(")", "")
+        command_list = ["NOT", "AND", "OR"]
+        queryList = queryAux.split(" ")
+        queryList = [x.lower() for x in queryList if x not in command_list]
         self.doc_weight_query = dict()
         if self.use_ranking:
-            result = self.rank_result(result, query.replace("(","").replace(")",""))
+            result = self.rank_result(result, queryList)
         
         if not self.show_all and len(result) >= 10:
             result = result[0:10]
@@ -1064,7 +1071,7 @@ class SAR_Project:
         ########################################
 
 
-    def rank_result(self, result, query):
+    def rank_result(self, result, queryList):
         """
         NECESARIO PARA LA AMPLIACION DE RANKING
 
@@ -1077,9 +1084,6 @@ class SAR_Project:
         return: la lista de resultados ordenada
 
         """
-        queryList = query.split(" ")
-        command_list = ["NOT", "AND", "OR", ")", "("]
-        queryList = [x for x in queryList if x not in command_list]
         queryDict = {'article':[]}
         for w in queryList:
             subst = w.split(':')
