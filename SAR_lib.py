@@ -301,11 +301,10 @@ class SAR_Project:
         
         for token in self.index['article']:
             stem = self.stemmer.stem(token)
-            ocurr = 0
             ocurrStem = 0
             for (_, aparicions, _) in self.index['article'][token]:
-                ocurr += aparicions
-            ocurrStem += ocurr
+                ocurrStem += aparicions
+            
             if stem not in self.sindex['article']:
                 self.sindex['article'][stem] = (ocurrStem, [token])
             else:
@@ -319,11 +318,9 @@ class SAR_Project:
                 
                 for token in self.index[f]:
                     stem = self.stemmer.stem(token)
-                    ocurr = 0
                     ocurrStem = 0
                     for (_, aparicions, _) in self.index[f][token]:
-                        ocurr += aparicions
-                    ocurrStem += ocurr
+                        ocurrStem += aparicions
 
                     if stem not in self.sindex[f]:
                         self.sindex[f][stem] = (ocurrStem, [token])
@@ -563,15 +560,15 @@ class SAR_Project:
         #si no existeix el term en l'índex inveritt tornem la llista buida
         term = term.lower()
         if self.permuterm and '*' in term or '?' in term:
-            fulllfils_q = self.get_permuterm(term, field=field)
+            fullfils_q = self.get_permuterm(term, field=field)
             #Convert list of words into list of postings
             #Separate loops to avoid checking the field condition for every iteration
             left_acum = []
             if field != 'date':
-                for t in fulllfils_q:
+                for t in fullfils_q:
                     left_acum = self.or_posting(left_acum, [ x[0] for x in self.index[field][t] ])
             else:
-                for t in fulllfils_q:
+                for t in fullfils_q:
                     left_acum = self.or_posting(left_acum, self.index[field][t])
 
             return left_acum
@@ -635,9 +632,6 @@ class SAR_Project:
         else: 
             return []
         
-        ####################################################
-        ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
-        ####################################################
 
     def get_permuterm(self, term, field='article'):
         """
