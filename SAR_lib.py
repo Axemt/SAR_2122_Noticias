@@ -876,10 +876,11 @@ class SAR_Project:
             qListAux=[]
             for w in qList:
                 subst = w.split(':')
-                
-                if len(subst) == 1:
-                    
-                    if '*' in w:
+                #article:coche
+                if len(subst) == 1 or (len(subst) == 2 and subst[0] == 'article'):
+                    if (len(subst) == 2 and subst[0] == 'article'):
+                        w = subst[1]
+                    if '*' in w or '?' in w:
                         qListAux += self.get_permuterm(w.lower())
                     else:
                         qListAux.append(w)
@@ -899,7 +900,6 @@ class SAR_Project:
             
             #Fase 2
             positionList = []
-            docID, newPos, longitud = self.news[newsID]
             wqPosList = []
             for wq in qList:
                 if wq in self.index['article'].keys():
@@ -907,11 +907,10 @@ class SAR_Project:
                     wqPosList = [x[2] for x in AuxList if x[0] == newsID]
                     if(len(wqPosList) > 0):
                         wqPosList = wqPosList[0]
-                    else:   #El token existe en el diccionario, pero no en la noticia que queremos.
-                        return defaultSnippet()
                     for p in wqPosList:
                         positionList.append(p)
-
+            if len(positionList) == 0:
+                return defaultSnippet()
             positionList = sorted(positionList, key= lambda x: x, reverse=False) #Major pos al principi. Menor al final
             #Crear partes de stems...
 
@@ -920,7 +919,7 @@ class SAR_Project:
             cont = 0
             lastpos = positionList[0]
             if len(positionList) >= 3:
-                positionList = positionList[0:3]
+                positionList = positionList[0:4]
             for pi in range(1,len(positionList)):
                 if positionList[pi] -lastpos> 30:
                     snippetList.append([])
@@ -950,7 +949,6 @@ class SAR_Project:
             return snippetRes
         #endregion
 
-        #AVIS!!!!! L'accés al diccionari pot estar MAL i faltar algun [1]
         print("========================================")
         print("Query: " + query)
         #Llista de les ids de les noticies
