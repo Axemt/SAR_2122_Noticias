@@ -873,6 +873,9 @@ class SAR_Project:
             #Fase 1
             qList = queryList
             noticia = self.tokenize(article)
+            if noticia[0] == 'actualizado':
+                noticia = noticia[6:]
+                noticia[0] = noticia[0][4:]
             qListAux=[]
             for w in qList:
                 subst = w.split(':')
@@ -888,12 +891,16 @@ class SAR_Project:
             #Si la lista de palabras para article está vacia, devolvemos las 25 primeras (busquedas multifield)
             def defaultSnippet():
                 snippetRes = ''
-                fin = 31
+                fin = 25
+                reached_final = False
                 if len(noticia) < fin:
                     fin = len(noticia)
-                for w_noticia in noticia[5:fin]:
+                    reached_final = True
+                for w_noticia in noticia[0:fin]:
                     snippetRes += w_noticia + " "
-                return snippetRes + '...'
+                if reached_final:
+                    snippetRes += '...'
+                return snippetRes
             
             if len(qList) == 0:
                 return defaultSnippet()
@@ -1023,9 +1030,11 @@ class SAR_Project:
             elif len(subst) == 1:
                 field = 'article'
                 word = subst[0].lower()
+
             if field not in self.index:
                 print(str(field) + ' field do not exists in our database.')
                 return []
+
             if '*' in word:
                 queryDict[field] += self.get_permuterm(word,field)
             else:
@@ -1040,7 +1049,7 @@ class SAR_Project:
                     if qword in self.weight[field].keys():
                         docWeight += self.weight[field][qword].get(doc,0)
             doc_list.append((doc,docWeight))
-        
+            
         self.doc_weight_query = dict(doc_list)
         doc_list = [k for k, v in sorted(doc_list, key=lambda item: item[1], reverse=True)]
         return doc_list
