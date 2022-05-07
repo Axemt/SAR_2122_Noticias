@@ -887,7 +887,10 @@ class SAR_Project:
             #Si la lista de palabras para article está vacia, devolvemos las 25 primeras (busquedas multifield)
             def defaultSnippet():
                 snippetRes = ''
-                for w_noticia in noticia[5:31]:
+                fin = 31
+                if len(noticia) < fin:
+                    fin = len(noticia)
+                for w_noticia in noticia[5:fin]:
                     snippetRes += w_noticia + " "
                 return snippetRes + '...'
             
@@ -907,23 +910,23 @@ class SAR_Project:
                     else:   #El token existe en el diccionario, pero no en la noticia que queremos.
                         return defaultSnippet()
                     for p in wqPosList:
-                        positionList.append((wq,p))
+                        positionList.append(p)
 
-            positionList = sorted(positionList, key= lambda x: x[1], reverse=False) #Major pos al principi. Menor al final
+            positionList = sorted(positionList, key= lambda x: x, reverse=False) #Major pos al principi. Menor al final
             #Crear partes de stems...
 
             #Fase 3
-            snippetList = [[positionList[0][1]]]
+            snippetList = [[positionList[0]]]
             cont = 0
-            lastpos = positionList[0][1]
+            lastpos = positionList[0]
             if len(positionList) >= 3:
                 positionList = positionList[0:3]
             for pi in range(1,len(positionList)):
-                if positionList[pi][1] -lastpos> 30:
+                if positionList[pi] -lastpos> 30:
                     snippetList.append([])
                     cont+=1
-                snippetList[cont].append(positionList[pi][1])
-                lastpos = positionList[pi][1]
+                snippetList[cont].append(positionList[pi])
+                lastpos = positionList[pi]
 
             noticiaWordSnippetList = []
             for l in snippetList:
