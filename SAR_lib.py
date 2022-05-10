@@ -252,26 +252,32 @@ class SAR_Project:
         """
         ocurrStem = 0
         for token in self.index['article']:
-            stem = self.stemmer.stem(self.index['article'][token])
-
-            for (_, aparicions, _) in self.index['article'][token]:
-                ocurr += aparicions
-            ocurrStem += ocurr
+            stem = self.stemmer.stem(token)
+            # ocurrStem = 0
+            #for (_, aparicions, _) in self.index['article'][token]:
+            #    ocurrStem += aparicions
+            
+            if stem not in self.sindex['article']:
+                self.sindex['article'][stem] = [token]
+            else:
+                self.sindex['article'][stem] = self.sindex['article'][stem][1] + [token]
             
             self.sindex['article'][stem] = (ocurrStem, self.sindex['article'][stem][1] + [token])
             
         if self.multifield:
             fields = ['keywords', 'title', 'summary']
-
             for f in fields:
-                #for token in self.index['article']:
-                stem = self.stemmer.stem(self.index[f][token])
+                for token in self.index[f]:
+                    stem = self.stemmer.stem(token)
+                    # ocurrStem = 0
+                    # for (_, aparicions, _) in self.index[f][token]:
+                    #    ocurrStem += aparicions
 
-                for (_, aparicions, _) in self.index[f][token]:
-                    ocurr += aparicions
-                ocurrStem += ocurr
+                    if stem not in self.sindex[f]:
+                        self.sindex[f][stem] = [token]
+                    else:
+                        self.sindex[f][stem] = self.sindex[f][stem][1] + [token]
                 
-                self.sindex[f][stem] = (ocurrStem, self.sindex[f][stem][1] + [token])
         # keyword title summary
         ####################################################
         ## COMPLETAR PARA FUNCIONALIDAD EXTRA DE STEMMING ##
@@ -486,9 +492,11 @@ class SAR_Project:
         
         stem = self.stemmer.stem(term)
         
-        if self.sindex.get(field, None) != None:
-            lstem = self.sindex[field][stem][1] # llista de paraules amb l'stem
-            p1 = self.index[field][lstem][0] # Cuidador revisar pq lista 1 elem
+        if self.sindex[field].get(stem, None) != None:
+            lstem = self.sindex[field][stem] # llista de paraules amb l'stem
+            
+            # p1 es la llista composada per l'element 0 de la llista de paraules amb un mateix stem
+            p1 = [x[0] for x in self.index[field][lstem[0]]] 
             
             if len(lstem) == 1:
                 return p1
