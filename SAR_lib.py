@@ -308,8 +308,6 @@ class SAR_Project:
             if stem not in self.sindex['article']:
                 self.sindex['article'][stem] = [token]
             else:
-                #print(self.sindex['article'][stem])
-                #input()
                 self.sindex['article'][stem] = self.sindex['article'][stem] + [token]
 
             
