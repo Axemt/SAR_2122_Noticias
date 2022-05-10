@@ -1,0 +1,28 @@
+
+años AND google OR cultura
+años AND (google OR cultura)
+(google OR cultura) AND años
+años AND NOT (google OR cultura)
+años AND (NOT google AND NOT cultura)
+NOT (google OR cultura) AND años
+(psoe OR pp OR CiU)
+(economía OR política)
+(psoe OR pp OR CiU) AND (economía OR política)
+NOT (psoe OR pp OR CiU) AND (economía OR política)
+mujer
+mujer AND ((psoe OR pp OR CiU) AND (economía OR política))
+mujer AND (NOT (psoe OR pp OR CiU) AND (economía OR política))
+cultura
+cultura AND date:2015-01-21
+cultura AND NOT date:2015-01-21
+móvil
+keywords:nervioso
+móvil AND keywords:nervioso
+economía
+keywords:precio
+economía OR keywords:precio
+guerra
+keywords:EEUU
+guerra AND keywords:EEUU
+guerra OR keywords:EEUU
+casa

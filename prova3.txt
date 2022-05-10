@@ -1,0 +1,20 @@
+cosa
+c*sa
+c?sa
+c*sa AND c?sa
+c*sa OR c?sa
+c*sa AND NOT c?sa
+ma?a AND NOT mata
+bar*na OR val*cia OR pa*s
+date:201*10
+date:201*3
+cosapytho
+title:el OR title:país
+keywords:restaurantes OR Carmena
+keywords:precio OR keywords:economía
+keywords:precio OR keywords:economía AND banco
+(keywords:precio OR keywords:economía) AND banco
+keywords:precio OR (keywords:economía AND banco)
+keywords:precio OR NOT (keywords:economía AND banco)
+c*sa AND (keywords:restaurantes OR Carmena)
+c*sa AND (keywords:restaurantes OR date:201*10)
