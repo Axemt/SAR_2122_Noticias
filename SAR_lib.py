@@ -308,8 +308,10 @@ class SAR_Project:
             if stem not in self.sindex['article']:
                 self.sindex['article'][stem] = [token]
             else:
-                self.sindex['article'][stem] = self.sindex['article'][stem][1] + [token]
-            
+                #print(self.sindex['article'][stem])
+                #input()
+                self.sindex['article'][stem] = self.sindex['article'][stem] + [token]
+
             
         if self.multifield:
             fields = ['keywords', 'title', 'summary']
@@ -323,7 +325,7 @@ class SAR_Project:
                     if stem not in self.sindex[f]:
                         self.sindex[f][stem] = [token]
                     else:
-                        self.sindex[f][stem] = self.sindex[f][stem][1] + [token]
+                        self.sindex[f][stem] = self.sindex[f][stem] + [token]
                 
         # keyword title summary
 
